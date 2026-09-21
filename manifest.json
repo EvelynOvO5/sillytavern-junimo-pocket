@@ -1,0 +1,11 @@
+{
+  "display_name": "Junimo Pocket · 月亮谷手机",
+  "loading_order": 50,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "author": "Junimo Pocket",
+  "version": "0.1.0",
+  "homePage": "https://github.com/EvelynOvO5/sillytavern-junimo-pocket",
+  "auto_update": false
+}
