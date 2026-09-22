@@ -82,3 +82,4 @@ npm run build
 对接依据：[SillyTavern 官方扩展文档](https://docs.sillytavern.app/for-contributors/writing-extensions/)，使用 `SillyTavern.getContext()`、事件总线、扩展设置和聊天 metadata。
 
 视觉素材沿用提供的原 HTML 外链；素材权利归原作者，未额外授予素材许可。
+第三方 HTTP 接口：在手机设置中勾选「允许第三方 HTTP 接口」再保存。HTTP 会明文传输 Key 和聊天内容，请优先使用服务商提供的 HTTPS 地址。此选项不会绕过浏览器的跨域限制；HTTPS 酒馆页面请搭配 HTTPS 接口。
