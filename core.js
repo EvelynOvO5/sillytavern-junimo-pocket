@@ -45,9 +45,10 @@ export function reconcile(store, signatures) {
   return keep;
 }
 export function world(store) {return clone(store.turns.at(-1)?.state??store.base);}
-export function endpoint(input) {
+export function endpoint(input,allowHttp=false) {
   const u=new URL(input);
-  if(u.protocol!=='https:' && !(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname))) throw Error('API 请使用 HTTPS；本机接口可用 HTTP');
+  if(!['http:','https:'].includes(u.protocol))throw Error('API 地址仅支持 HTTP 或 HTTPS');
+  if(u.protocol==='http:'&&!allowHttp&&!['localhost','127.0.0.1','[::1]'].includes(u.hostname))throw Error('这是 HTTP 接口，请在手机设置勾选“允许第三方 HTTP 接口”后保存');
   if(u.username||u.password||u.search||u.hash)throw Error('地址中不要包含密码、查询参数或 Key');
   return u.href.replace(/\/$/,'').replace(/(?:\/chat\/completions)?$/,'/chat/completions');
 }
