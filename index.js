@@ -123,7 +123,7 @@ function boot(){
   const c=context(),events=c.eventTypes??c.event_types;const on=(name,fn)=>{if(events[name])c.eventSource.on(events[name],fn);};
   on('CHAT_CHANGED',()=>{invalidate();generation=false;storeRef=context().chatMetadata;ui.closeRoom();ui.home();render();status('已切换对话');ui.setLoreStatus('下次请求将检查当前卡的世界书绑定');schedule();});
   for(const name of ['WORLDINFO_UPDATED','WORLDINFO_SETTINGS_UPDATED','CHARACTER_EDITED'])on(name,()=>{ui.setLoreStatus('设定已变化，下次请求读取更新后的世界书');});
-  on('GENERATION_STARTED',()=>{generation=true;invalidate();});on('GENERATION_ENDED',()=>{generation=false;schedule();});on('GENERATION_STOPPED',()=>{generation=false;schedule();});
+  on('GENERATION_STARTED',(type,options,dryRun)=>{if(dryRun||type==='quiet'||type==='impersonate')return;generation=true;invalidate();status('正文正在生成，完成后自动同步');});on('GENERATION_ENDED',()=>{generation=false;schedule();});on('GENERATION_STOPPED',()=>{generation=false;schedule();});
   for(const name of ['MESSAGE_EDITED','MESSAGE_DELETED','MESSAGE_SWIPED'])on(name,()=>{invalidate();schedule();});
   on('CHARACTER_MESSAGE_RENDERED',schedule);on('MESSAGE_RECEIVED',schedule);schedule();
 }
