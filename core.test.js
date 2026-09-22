@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyPatch,parseResult,validatePatch,endpoint,reconcile,world,fingerprint} from './core.js';
+import {applyPatch,parseResult,validatePatch,endpoint,reconcile,world,fingerprint,migrateDemo} from './core.js';
 const base={gold:10,calendar:{day:1,season:'春'},inventory:[],plots:[],relationships:{},locations:{}};
 test('absolute updates never double count and preserve unchanged calendar fields',()=>{const patch={gold:15,calendar:{day:2}};const once=applyPatch(base,patch);assert.deepEqual(applyPatch(once,patch),once);assert.equal(once.calendar.season,'春');assert.equal(base.gold,10);});
 test('arrays replace completely including empty inventory',()=>assert.deepEqual(applyPatch({...base,inventory:[{name:'土豆',count:1}]},{inventory:[]}).inventory,[]));
@@ -11,3 +11,5 @@ test('secure endpoint normalization',()=>{assert.equal(endpoint('https://example
 test('signatures are stable and distinguish swipes',async()=>{assert.equal(await fingerprint('a'),await fingerprint('a'));assert.notEqual(await fingerprint('a'),await fingerprint('b'));});
 
 test('explicit HTTP opt-in',()=>{assert.throws(()=>endpoint('http://154.40.43.160:3000/v1'));assert.equal(endpoint('http://154.40.43.160:3000/v1',true),'http://154.40.43.160:3000/v1/chat/completions');assert.throws(()=>endpoint('ftp://example.com',true));assert.throws(()=>endpoint('http://user:secret@example.com',true));});
+test('reject responses without explicit state patch',()=>{assert.throws(()=>parseResult('{"gold":100}'));assert.throws(()=>parseResult('{}'));assert.deepEqual(parseResult('{"patch":{},"messages":[]}').patch,{});});
+test('migrate demo baseline but preserve confirmed changes with backup',()=>{const demo={gold:12580,inventory:[{name:'防风草种子',count:12}],plots:[{crop:'土豆'}],calendar:{day:1}};const s={version:1,base:structuredClone(demo),turns:[{state:{...structuredClone(demo),gold:300}}]};const empty={gold:0,inventory:[],plots:[],calendar:{day:0},buildings:[]};assert(migrateDemo(s,empty));assert.equal(s.base.gold,0);assert.equal(s.turns[0].state.gold,300);assert.deepEqual(s.turns[0].state.inventory,[]);assert.equal(s.demoBackup.base.gold,12580);assert(s.needsRefresh);assert(!migrateDemo(s,empty));});
