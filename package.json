@@ -1,5 +1,15 @@
 {
   "name": "sillytavern-junimo-pocket",
+  "version": "0.6.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js",
+    "build": "node build.mjs"
+  }
+}
+{
+  "name": "sillytavern-junimo-pocket",
   "version": "0.6.0",
   "private": true,
   "type": "module",
