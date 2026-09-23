@@ -5,7 +5,7 @@ const name = x => text(x,80) && !/["'`\\]/.test(x);
 const number = (x, max=1000000000) => Number.isFinite(x) && x >= 0 && x <= max;
 export function validatePatch(patch) {
   if (!plain(patch)) throw Error('状态更新必须是 JSON 对象');
-  const allowed=['gold','capacity','calendar','inventory','plots','relationships','locations','quests','animals','buildings','notes'];
+  const allowed=['gold','capacity','calendar','inventory','plots','relationships','locations','quests','animals','buildings','calendarEvents','notes'];
   for (const key of Object.keys(patch)) if (!allowed.includes(key)) throw Error('未知状态字段：'+key);
   if ('gold' in patch && !number(patch.gold)) throw Error('金币无效');
   if ('capacity' in patch && (!Number.isInteger(patch.capacity)||!number(patch.capacity,1000))) throw Error('背包容量无效');
@@ -14,6 +14,8 @@ export function validatePatch(patch) {
   if (patch.inventory?.some(x=>!plain(x)||!name(x.name)||!x.name||!Number.isInteger(x.count)||!number(x.count,1000000)||!number(x.price??0)||!['item','seed','fertilizer'].includes(x.kind??'item')||!number(x.days??0,9999))) throw Error('背包物品无效');
   if (patch.plots?.some(x=>!plain(x)||!name(x.crop)||typeof x.wet!=='boolean'||!(x.days===null||number(x.days,9999))||!name(x.fertilizer??''))) throw Error('农田数据无效');
   if('buildings' in patch&&(!Array.isArray(patch.buildings)||patch.buildings.length>100))throw Error('建筑数据无效');
+  if('calendarEvents' in patch&&(!Array.isArray(patch.calendarEvents)||patch.calendarEvents.length>100||patch.calendarEvents.some(x=>!plain(x)||!text(x.name,80)||!number(x.day,366)||!text(x.detail??'',2000)||!text(x.person??'',80))))throw Error('日历事件无效');
+  for(const key of ['quests','buildings'])for(const item of patch[key]||[])for(const field of ['detail','goal','reward','deadline'])if(item[field]!==undefined&&!text(item[field],2000))throw Error('任务或建筑详情无效');
   for(const key of ['quests','animals','buildings']) if(patch[key]?.some(x=>!plain(x)||!text(x.name,80)||!text(x.status??'',300))) throw Error(key+' 内容无效');
   if ('relationships' in patch && (!plain(patch.relationships)||Object.entries(patch.relationships).some(([k,v])=>!/^\d{2}$/.test(k)||!number(v,2500)))) throw Error('好感度无效');
   if ('locations' in patch && (!plain(patch.locations)||Object.entries(patch.locations).some(([k,v])=>!/^\d{2}$/.test(k)||!plain(v)||!['west','center','north','south','east'].includes(v.region)||!number(v.x,100)||!number(v.y,100)))) throw Error('位置无效');
