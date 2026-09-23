@@ -23,17 +23,17 @@ export async function readBoundLore(ctx,boundAvatar='',signal,fetcher=fetch) {
 }
 export function selectLore(entries,{roleName='',narrative='',roles=[],budget=18000,user='用户',character='角色'}={}) {
   const query=(roleName+'\n'+narrative).toLowerCase();
-  const targetNames=roleName==='维克多'?['维克多','维克托']:[roleName];
+  const targetNames=roleName.split('、').filter(Boolean).flatMap(n=>n==='维克多'?['维克多','维克托']:[n]);
   const candidates=entries.filter(e=>e&&!e.disable&&e.enabled!==false&&typeof e.content==='string'&&e.content.trim()).filter(e=>!/(?:状态栏|\bcot\b|思维链|越狱)/i.test(e.comment||'')&&!/<(?:script|style|iframe)\b/i.test(e.content)).map(e=>{
     const title=String(e.comment||e.name||'');
     const keys=Array.isArray(e.key)?e.key:[];
     const direct=!!roleName&&targetNames.some(n=>title.includes(n)||keys.some(k=>String(k).includes(n)));
-    const otherRole=roleName&&roles.some(r=>r.name!==roleName&&title.includes(r.name));
+    const otherRole=roleName&&roles.some(r=>!targetNames.includes(r.name)&&title.includes(r.name));
     const matched=keys.some(k=>typeof k==='string'&&k.length>0&&!k.startsWith('/')&&query.includes(k.toLowerCase()));
     const common=/世界观|规则|时间|地图|节日|任务|游戏|主要角色/.test(title);
     return {e,title,score:direct?100:otherRole?-1:common?50:matched?40:e.constant?20:-1};
   }).filter(x=>x.score>=0).sort((a,b)=>b.score-a.score||(Number(b.e.order)||0)-(Number(a.e.order)||0));
   let remaining=budget,trimmed=false;const selected=[];
-  for(const {e,title} of candidates){if(remaining<100){trimmed=true;break;}let content=e.content.replace(/\{\{user\}\}/gi,()=>user).replace(/\{\{char\}\}/gi,()=>character);const max=Math.min(remaining,roleName&&title.includes(roleName)?10000:6000);if(content.length>max){content=content.slice(0,max)+'\n[此条目超出手机上下文限额]';trimmed=true;}selected.push({title,content});remaining-=content.length+title.length;}
+  for(const {e,title} of candidates){if(remaining<100){trimmed=true;break;}let content=e.content.replace(/\{\{user\}\}/gi,()=>user).replace(/\{\{char\}\}/gi,()=>character);const max=Math.min(remaining,targetNames.length>1?Math.max(500,Math.floor(budget*.75/targetNames.length)):roleName&&title.includes(roleName)?10000:6000);if(content.length>max){content=content.slice(0,max)+'\n[此条目超出手机上下文限额]';trimmed=true;}selected.push({title,content});remaining-=content.length+title.length;}
   return {selected,trimmed,total:entries.filter(e=>e&&!e.disable&&e.enabled!==false).length};
 }
