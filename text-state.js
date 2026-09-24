@@ -18,8 +18,8 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  case '时间':patch.calendar=calendar(v,state.calendar);break;
  case '金币':patch.gold=num(a);break;case '容量':patch.capacity=num(a);break;
  case '背包':list('inventory',a==='无'?null:{name:a,count:num(b),kind:({物品:'item',种子:'seed',肥料:'fertilizer'})[c]||(/种子$/.test(a)?'seed':'item'),price:unknown(d)?0:num(d),priceUnknown:unknown(d),days:unknown(e)?0:num(e)});break;
- case '农田':if(a==='无'){patch.plots=state.plots.map((_,i)=>({index:i+1,...empty()}));break;}if(!stages[c])throw Error('农田阶段应为播种、生长、成熟或空地');if(!['已浇','未浇'].includes(e))throw Error('农田浇水状态无效');(patch.plots??=[]).push({index:num(a),crop:b==='无'?'':b,stage:stages[c],days:d==='未知'?null:num(d),wet:e==='已浇',fertilizer:f==='无'?'':f||''});break;
- case '位置':{if(a===userName)break;const roleId=id(a);let spot=resolvePlace(b,anchors);if(!spot&&v.length===4)spot={region:regions[b]||b,x:num(c),y:num(d)};if(!spot)throw Error('未知地图地点：'+b);(patch.locations??={})[roleId]={region:spot.region,x:spot.x,y:spot.y};break;}
+ case '农田':{if(a==='无'){patch.plots=state.plots.map((_,i)=>({index:i+1,...empty()}));break;}const range=a.match(/^(\d+)\s*[-~～至到]\s*(\d+)$/),first=range?+range[1]:num(a),last=range?+range[2]:first;if(!Number.isInteger(first)||!Number.isInteger(last)||first<1||last<first||last>120)throw Error('农田格号应在1到120之间');const bare=['无','空地','空'].includes(b);let plot;if(bare&&(c==='空地'||unknown(c)))plot=empty();else{if(!stages[c])throw Error('农田阶段应为播种、生长、成熟或空地');if(!['已浇','未浇'].includes(e))throw Error('农田浇水状态无效');plot={crop:bare?'':b,stage:stages[c],days:unknown(d)?null:num(d),wet:e==='已浇',fertilizer:unknown(f)?'':f};if(plot.stage==='empty'&&plot.crop)throw Error('空地不能含作物');if(plot.stage!=='empty'&&!plot.crop)throw Error('种植格缺少作物');if(plot.crop&&plot.stage!=='mature'&&plot.days===0)throw Error('未成熟作物天数不能为零');validatePatch({plots:[plot]});}for(let index=first;index<=last;index++)(patch.plots??=[]).push({index,...plot});break;}
+ case '位置':{if(a===userName)break;const roleId=id(a);let spot=resolvePlace(userName&&b===userName+'的牧场'?'你的牧场':b,anchors);if(!spot&&v.length===4)spot={region:regions[b]||b,x:num(c),y:num(d)};if(!spot)throw Error('未知地图地点：'+b);(patch.locations??={})[roleId]={region:spot.region,x:spot.x,y:spot.y};break;}
  case '好感':(patch.relationships??={})[id(a)]=num(b);break;
  case '任务':list('quests',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{}),goal:d||'',reward:e||'',deadline:f||'',detail:g||''});break;
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
@@ -58,7 +58,7 @@ ${initial?'首次初始化必须写时间、背包、农田和全部角色位置
 建筑：鸡舍|建设中|20
 日程：花舞节|春季|24|前往森林|无
 记录：今天结识了新朋友
-背包格式为名称|数量|物品或种子或肥料|单价|生长天数（未知写未知）。农田格式为格号|作物（空地写无）|播种或生长或成熟或空地|剩余天数（未知写未知）|已浇或未浇|肥料（没有写无）。播种不能成熟，只有成熟才天数0；空地天数写未知。所有农田清空才写“农田：无”。不修改没有发生的状态。
+背包格式为名称|数量|物品或种子或肥料|单价|生长天数（未知写未知）。相邻多格内容一致时可合写，如“农田：1-15|防风草|播种|未知|未浇|无”，格号必须对应实际行动，不能自动重排。农田格式为格号|作物（空地写无）|播种或生长或成熟或空地|剩余天数（未知写未知）|已浇或未浇|肥料（没有写无）。播种不能成熟，只有成熟才天数0；空地天数写未知。所有农田清空才写“农田：无”。不修改没有发生的状态。
 角色名单：${roles.map(r=>r.name).join('、')}。位置优先使用这些地点：${Object.keys(anchors).join('、')}；无匹配地点才写“位置：角色|西部或中心或北部或南部或东部|横坐标0到100|纵坐标0到100”。
 当前还没有地图位置的角色：${roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无'}。这些角色无论本轮是否出场，都必须依据世界书与时刻写一行初始位置；不能只写用户位置来替代。之后只写移动者。背包未知价格或天数写“未知”，不要把数量写成未知。
 已确认状态（仅供参照，不要整段复制）：\n${formatState(state,roles,anchors)}`;}
