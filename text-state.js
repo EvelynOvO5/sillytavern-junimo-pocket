@@ -1,4 +1,4 @@
-import {clone} from './core.js';
+import {clone,validatePatch} from './core.js';
 export const TEXT_START='【手机状态】',TEXT_END='【状态结束】';
 const regions={西部:'west',中心:'center',北部:'north',南部:'south',东部:'east'};
 const stages={空地:'empty',播种:'seeded',生长:'growing',成熟:'mature'};
@@ -6,20 +6,20 @@ const empty=()=>({crop:'',days:null,wet:false,fertilizer:'',stage:'empty'});
 const unknown=s=>/^(?:未知|未确认|不详|待定|无|—|-|null)?$/i.test(String(s??'').trim());
 function numeric(value){const s=String(value??'').trim().replace(/[０-９]/g,c=>String(c.charCodeAt(0)-65296));const m=s.match(/^(?:第\s*)?(\d+(?:\.\d+)?)\s*(?:金币|金|g|格|个|枚|份|袋|点|天|日|年|%|％)?\s*(?:[（(][^()（）]*[）)])?$/i);if(!m)throw Error('数值格式错误：'+s);return Number(m[1]);}
 function calendar(values,previous){const result={...previous};let clock=false,day=false;const rest=[];for(let i=0;i<values.length;i++){const token=values[i].trim().replace(/^\s*(?:季节|日期|年份|天气|时刻)[：:]\s*/,'');let m;if((m=token.match(/^(春|夏|秋|冬)(?:季|天)?$/)))result.season=m[1]+'季';else if(/^(?:星期|周|礼拜)[一二三四五六日天1-7]$/.test(token))result.weekday=token;else if((m=token.match(/^(\d{1,2})[:：](\d{2})$/))){if(+m[1]>23||+m[2]>59)throw Error('时间须为有效的 HH:MM');result.time=m[1].padStart(2,'0')+':'+m[2];clock=true;}else if(/^第?\d+年$/.test(token))result.year=numeric(token);else if(/^第?\d+(?:日|天)$/.test(token)){result.day=numeric(token);day=true;}else if(/^\d+$/.test(token)){if(!day){result.day=numeric(token);day=true;}else result.year=numeric(token);}else if(token)rest.push(token);}if(!clock)throw Error('时间中缺少有效时刻，例如06:15');if(rest.length>1)throw Error('时间栏目无法区分：'+rest.join('、'));if(rest.length)result.weather=rest[0];return result;}
-function resolvePlace(place,anchors){const exact=Object.entries(anchors).find(([name,p])=>name===place||p.aliases?.includes(place));if(exact)return exact[1];const base=place.replace(/(?:[一二三四五六七八九十\d]+楼|楼上|楼下|门口|门外|门前|内部|内|外)$/,'');return Object.entries(anchors).find(([name,p])=>name===base||p.aliases?.includes(base))?.[1];}
+function resolvePlace(place,anchors){const exact=Object.entries(anchors).find(([name,p])=>name===place||p.aliases?.includes(place));if(exact)return exact[1];const base=place.replace(/[（(](?:[一二三四五六七八九十\d]+楼|楼上|楼下|门口|老屋)[）)]$/,'').replace(/(?:[一二三四五六七八九十\d]+楼|楼上|楼下|门口|门外|门前|内部|内|外)$/,'');return Object.entries(anchors).find(([name,p])=>name===base||p.aliases?.includes(base))?.[1];}
 export function parseTextState(raw,state,{roles=[],anchors={}}={}){
  const start=raw.lastIndexOf(TEXT_START);if(start<0)return null;const end=raw.indexOf(TEXT_END,start);if(end<0)throw Error('文字状态摘要未写完');
- const patch={},lists=new Set();const id=name=>{const r=roles.find(r=>r.name===name||r.id===name);if(!r)throw Error('未知角色：'+name);return r.id;};
+ const patch={},lists=new Set(),warnings=[],invalidLists=new Set();const listKeys={背包:'inventory',任务:'quests',建筑:'buildings',动物:'animals',日程:'calendarEvents',农田:'plots'};const id=name=>{if(name==='维克托')name='维克多';const r=roles.find(r=>r.name===name||r.id===name);if(!r)throw Error('未收录的角色：'+name);return r.id;};
  const num=numeric;
  const list=(key,value)=>{if(!lists.has(key)){patch[key]=[];lists.add(key);}if(value)patch[key].push(value);};
  const lines=raw.slice(start+TEXT_START.length,end).split('\n').flatMap(line=>{const clean=line.trim().replace(/^[-*]\s+/,'').replace(/\*\*/g,'');if(!/^背包[：:]/.test(clean))return [clean];return clean.replace(/^背包[：:]\s*/,'').split(/[,，;；]\s*(?=[^|｜,，;；]+[|｜]\s*\d)/).map(x=>'背包：'+x);});
- for(const rawLine of lines){const line=rawLine.trim();if(!line||/^```/.test(line))continue;const m=line.match(/^([^：:]+)[：:](.*)$/);if(!m)throw Error('无法识别状态行：'+line);const key=m[1].trim(),v=m[2].split(/[|｜]/).map(x=>x.trim()),[a,b,c,d,e,f,g]=v;
+ for(const rawLine of lines){const line=rawLine.trim();if(!line||/^```/.test(line))continue;const m=line.match(/^([^：:]+)[：:](.*)$/);if(!m){warnings.push('无法识别状态行：'+line);continue;}const key=m[1].trim(),v=m[2].split(/[|｜]/).map(x=>x.trim()),[a,b,c,d,e,f,g]=v;try{
  switch(key){
  case '时间':patch.calendar=calendar(v,state.calendar);break;
  case '金币':patch.gold=num(a);break;case '容量':patch.capacity=num(a);break;
- case '背包':list('inventory',a==='无'?null:{name:a,count:num(b),kind:({物品:'item',种子:'seed',肥料:'fertilizer'})[c]||'item',price:num(d||'0'),days:e==='未知'?0:num(e||'0')});break;
+ case '背包':list('inventory',a==='无'?null:{name:a,count:num(b),kind:({物品:'item',种子:'seed',肥料:'fertilizer'})[c]||(/种子$/.test(a)?'seed':'item'),price:unknown(d)?0:num(d),priceUnknown:unknown(d),days:unknown(e)?0:num(e)});break;
  case '农田':if(a==='无'){patch.plots=state.plots.map((_,i)=>({index:i+1,...empty()}));break;}if(!stages[c])throw Error('农田阶段应为播种、生长、成熟或空地');if(!['已浇','未浇'].includes(e))throw Error('农田浇水状态无效');(patch.plots??=[]).push({index:num(a),crop:b==='无'?'':b,stage:stages[c],days:d==='未知'?null:num(d),wet:e==='已浇',fertilizer:f==='无'?'':f||''});break;
- case '位置':{let spot=resolvePlace(b,anchors);if(!spot&&v.length===4)spot={region:regions[b]||b,x:num(c),y:num(d)};if(!spot)throw Error('未知地图地点：'+b);(patch.locations??={})[id(a)]={region:spot.region,x:spot.x,y:spot.y};break;}
+ case '位置':{const roleId=id(a);let spot=resolvePlace(b,anchors);if(!spot&&v.length===4)spot={region:regions[b]||b,x:num(c),y:num(d)};if(!spot)throw Error('未知地图地点：'+b);(patch.locations??={})[roleId]={region:spot.region,x:spot.x,y:spot.y};break;}
  case '好感':(patch.relationships??={})[id(a)]=num(b);break;
  case '任务':list('quests',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{}),goal:d||'',reward:e||'',deadline:f||'',detail:g||''});break;
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
@@ -27,7 +27,9 @@ export function parseTextState(raw,state,{roles=[],anchors={}}={}){
  case '日程':list('calendarEvents',a==='无'?null:{name:a,season:b,day:num(c),detail:d||'',person:e==='无'?'':e||''});break;
  case '记录':patch.notes=v.join('｜');break;
  default:throw Error('未知状态栏目：'+key);
- }}return {version:1,patch};
+ }}catch(e){warnings.push(key+'：'+e.message);if(listKeys[key])invalidLists.add(listKeys[key]);}}
+ for(const key of invalidLists)delete patch[key];for(const key of Object.keys(patch)){if(key==='plots')continue;try{validatePatch({[key]:patch[key]});}catch(e){delete patch[key];warnings.push(key+'：'+e.message);}}
+ if(!Object.keys(patch).length&&warnings.length)throw Error(warnings.join('；'));return {version:1,patch,warnings};
 }
 export function formatState(state,roles=[],anchors={}){
  const s=clone(state),d=s.calendar,lines=[TEXT_START,`时间：${d.season}|${d.day}|${d.year}|${d.time}|${d.weather}|${d.weekday||''}`,`金币：${s.gold}`,`容量：${s.capacity}`];
