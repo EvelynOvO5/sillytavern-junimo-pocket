@@ -2,7 +2,13 @@
 
 SillyTavern 悬浮手机扩展，保留原版 HTML 的像素风界面、农场装饰、日历卡片、任务详情弹窗与全屏分区地图。
 
-## 0.7.0
+## 0.8.0
+
+- 桌面仅显示一行简短同步状态；详情与最近记录放到设置的折叠面板，不再推挤时钟与图标。设置重新设计为分组卡片。
+- 支持 `--`、破折号、N/A 等未知价格写法；重生成与切换候选回复的提示词以被替换正文之前的状态为起点，明确补齐缺失NPC位置。
+- 聊天输入框右侧 **➤** 只发气泡；下方工具栏的 **ϟ** 才触发回复。语音、表情包在工具栏中。
+- 表情包支持导入本地 PNG/JPG/WebP/GIF，填写名称与说明。图片存放在当前浏览器 IndexedDB，不随聊天存档导出；用户与 AI 都可发送库中的表情包。
+- 设置中的“表情包视觉识别”默认关闭。关闭时只发送名称和说明；开启后相关图片会发给当前 API（需模型支持图片），也可在导入面板点“AI 识图填写说明”。
 
 - 兼容省略年份、星期调序、未知价格与进度、人物别名和楼层后缀；额外系统角色单独提示，不阻断有效状态。列表存在无法解释的行时保留原列表，避免半份背包覆盖存档。
 - 私聊与群聊共享按收发时间排列的近期记忆。角色只知道自己参与的聊天；上下文有长度上限，不等于无限记忆。
@@ -35,4 +41,4 @@ API 设置在手机内：填写地址和 Key，拉取模型选择完整渠道名
 
 ## 开发
 
-source.html 为原设计，adapter.js 绑定状态，node build.mjs 生成 phone.js。protocol.js/text-state.js 定义变量协议，chat-protocol.js 校验聊天身份，phone-memory.js 组织共享时间线。npm test 检查协议与状态；tests/v6.cjs 验证原有组件与预览确认；tests/v7.cjs 验证语音、输入提示和跨聊天记忆；tests/presets.cjs 验证预设。
+source.html 为原设计，adapter.js 绑定状态，node build.mjs 生成 phone.js。protocol.js/text-state.js 定义变量协议，chat-protocol.js 校验聊天身份，phone-memory.js 组织共享时间线，stickers.js 保存本地图库。npm test 检查协议与状态；tests/v6.cjs 验证组件与预览确认；tests/v7.cjs 验证语音和跨聊天记忆；tests/v8.cjs 验证设置布局与表情包；tests/presets.cjs 验证预设。
