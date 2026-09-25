@@ -1,3 +1,4 @@
+import {applySocialEvents,managedQuests} from './social.js';
 export const clone = value => structuredClone(value);
 const plain = x => x && typeof x === 'object' && !Array.isArray(x);
 const text = (x, max=200) => typeof x === 'string' && x.length <= max && !/[<>]/.test(x);
@@ -48,7 +49,7 @@ export function reconcile(store, signatures) {
   if(keep<store.turns.length)store.turns.splice(keep);
   return keep;
 }
-export function world(store) {return clone(store.turns.at(-1)?.state??store.base);}
+export function world(store) {const turn=store.turns.at(-1),state=applySocialEvents(turn?.state??store.base,store.socialEvents||[],turn?.socialRevision??store.baseSocialRevision??0);if(store.mailQuests?.length){const managed=managedQuests(store);state.quests=[...(state.quests||[]).filter(q=>!q.mailQuestId&&!store.mailQuests.some(m=>m.subject===q.name)),...managed];}return state;}
 export function migrateDemo(store,empty){
   if(store.version>=2)return false;
   const demo=store.base?.gold===12580&&store.base?.inventory?.some(x=>x.name==='防风草种子'&&x.count===12);
