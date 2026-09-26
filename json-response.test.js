@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {parseResponseJSON} from './json-response.js';import {parseChatReply} from './chat-protocol.js';import {parseSocial} from './social.js';
+const roles=[{id:'11',name:'莱恩'}];
+test('actual literal newlines and tabs inside JSON strings are recovered',()=>{const raw='{"bubbles":[{"type":"text","text":"第一行\n第二行\t嗯"},],}';assert.equal(parseResponseJSON(raw).bubbles[0].text,'第一行\n第二行\t嗯');assert.equal(parseChatReply(raw,roles[0],roles)[0].text,'第一行\n第二行\t嗯');});
+test('fenced and valid escaped JSON work without changing quoted commas',()=>{const raw='```json\n{"bubbles":["嗯,]\\n再说一句"]}\n```';assert.equal(parseResponseJSON(raw).bubbles[0],'嗯,]\n再说一句');});
+test('broken JSON cannot become a raw chat bubble or execute code',()=>{assert.throws(()=>parseChatReply('```json\n{"bubbles":["unfinished',roles[0],roles));assert.throws(()=>parseResponseJSON('{"x":undefined}'));assert.throws(()=>parseResponseJSON('alert(1)'));});
+test('mail API handles real newlines in body through the same parser',()=>{const raw='{"letters":[{"senderId":"11","kind":"letter","subject":"晚安","body":"第一行\n第二行"}]}';const s={gold:100,inventory:[],plots:[]};assert.equal(parseSocial(raw,roles,s).letters[0].body,'第一行\n第二行');});
