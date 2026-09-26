@@ -1,10 +1,10 @@
 {
   "name": "sillytavern-junimo-pocket",
-  "version": "0.10.1",
+  "version": "0.10.3",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js",
+    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js",
     "build": "node build.mjs"
   }
 }
