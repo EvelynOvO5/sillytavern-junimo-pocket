@@ -14,3 +14,5 @@
 @media(prefers-reduced-motion:no-preference){.jp-page,.jp-transfer-page{animation:jp-page-in .18s ease-out}@keyframes jp-page-in{from{opacity:.5;transform:translateX(15px)}to{opacity:1;transform:translateX(0)}}}
 
 .jp-transfer-page .jp-sheet-head .jp-cancel{width:32px!important;max-width:32px!important;right:auto!important;z-index:1}.jp-transfer-page input[type=number]{appearance:textfield}.jp-transfer-page input::-webkit-inner-spin-button{appearance:none}
+
+.jp-quote-preview{border-left:3px solid #b795aa;background:#ffffff44;padding:6px 8px;margin-bottom:7px;font-size:11px;max-height:66px;overflow:hidden;color:inherit}.jp-compose-quote{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f4e9ef;color:#705366;font-size:12px}.jp-compose-quote span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jp-message-excerpt{max-height:110px;overflow:auto;white-space:pre-wrap}.jp-post-delete{border:0;background:none;color:#947787;font-size:11px;cursor:pointer;padding:4px 8px}.chat-bubble{-webkit-touch-callout:none}
