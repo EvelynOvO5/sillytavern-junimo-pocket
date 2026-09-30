@@ -40,7 +40,7 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  case '农田':{if(a==='无'){patch.plots=state.plots.map((_,i)=>({index:i+1,...empty()}));break;}const range=a.match(/^(\d+)\s*[-~～至到]\s*(\d+)$/),first=range?+range[1]:num(a),last=range?+range[2]:first;if(!Number.isInteger(first)||!Number.isInteger(last)||first<1||last<first||last>120)throw Error('农田格号应在1到120之间');const bare=['无','空地','空'].includes(b);let plot;if(bare&&(c==='空地'||unknown(c)))plot=empty();else{if(!stages[c])throw Error('农田阶段应为播种、生长、成熟或空地');if(!['已浇','未浇'].includes(e))throw Error('农田浇水状态无效');plot={crop:bare?'':b,stage:stages[c],days:unknown(d)?null:num(d),wet:e==='已浇',fertilizer:unknown(f)?'':f};if(plot.stage==='empty'&&plot.crop)throw Error('空地不能含作物');if(plot.stage!=='empty'&&!plot.crop)throw Error('种植格缺少作物');if(plot.crop&&plot.stage!=='mature'&&plot.days===0)throw Error('未成熟作物天数不能为零');validatePatch({plots:[plot]});}for(let index=first;index<=last;index++)(patch.plots??=[]).push({index,...plot});break;}
  case '位置':{if(a===userName||/^(?:系统)?小爱(?:[（(]系统[）)])?$/.test(a))break;const roleId=id(a);let spot=resolvePlace(b,anchors,userName);if(!spot&&v.length===4)spot={region:regions[b]||b,x:num(c),y:num(d)};if(!spot)throw Error('未知地图地点：'+b);(patch.locations??={})[roleId]={region:spot.region,x:spot.x,y:spot.y};break;}
  case '好感':if(a==='无')break;(patch.relationships??={})[id(a)]=num(b);break;
- case '任务':list('quests',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{}),goal:d||'',reward:e||'',deadline:f||'',detail:g||''});break;
+ case '任务':{if(a==='无'){list('quests',null);break;}let progress,offset=2;if(unknown(c))offset=3;else{try{progress=num(c);offset=3;}catch{const fraction=c?.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)(?:\s*分钟)?$/);if(fraction&&+fraction[2]>0){progress=Math.min(100,+fraction[1]/+fraction[2]*100);offset=3;}}}list('quests',{name:a,status:b||'',...(progress!==undefined?{progress}:{}),goal:v[offset]||'',reward:v[offset+1]||'',deadline:v[offset+2]||'',detail:v.slice(offset+3).join('｜')});break;}
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
  case '建筑':list('buildings',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{})});break;
  case '日程':list('calendarEvents',a==='无'?null:{name:a,season:b,day:num(c),detail:d||'',person:e==='无'?'':e||''});break;
@@ -63,7 +63,7 @@ export function textStatePrompt(state,roles,anchors,initial){return `【手机�
 ${initial?'首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。':'保留未改变的值，不要每轮列全部角色和空地。'}
 每一轮都必须复核并输出“时间”。时间为故事时间，不是电脑时钟；谈话、走路、劳动都应按正文实际耗时推进分钟，跨日同步日期。明确无时间流逝才保持不变，禁止一直机械沿用开场06:00，也不能无依据跳过几小时。
 每轮检查参与互动角色对用户的好感变化，依据世界书和互动质量小幅增减，输出更新后0到2500的总点数（不是增量）。未互动角色不变，不能无理由全员增加。正负互动都应反映，不要一直遗漏好感栏。
-时间字段写明日、年，星期不能当成年份；年份不确定可省略。每件背包物品单独一行，不要用逗号挤在同一行。任务或建筑进度不确定写未知。
+时间字段写明日、年，星期不能当成年份；年份不确定可省略。每件背包物品单独一行，不要用逗号挤在同一行。任务或建筑进度不确定写未知。任务必须按 名称|状态|数字进度或未知|目标|奖励|期限|详情 排列；不要省略进度栏，也不要把时间进度或任务目标塞进数字进度栏。
 格式示例（值按正文填写，未变化可省略）：
 时间：春季|1日|星期一|06:15|晴|第1年
 金币：500
