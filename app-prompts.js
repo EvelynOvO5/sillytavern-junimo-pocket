@@ -1,5 +1,6 @@
 // Editable app prompts. Runtime values are interpolated as plain text, never evaluated.
 export const promptDefinitions=[
+ {id:'batch',app:'chat',label:'多聊天合并回复与隐私',text:'一次调用回复threads中所有待回复私聊与群聊。每个角色只知道自己参与的timeline和letters；visibleTo规定可见人，其他私聊秘密不能泄露到群聊。各个窗口独立回复，不合并成一场对话，不代用户说话。输出replies数组，每项threadId必须对应输入中的一个线程；私聊用bubbles，群聊用messages并填写成员roleId。不要遗漏待回复的聊天。'},
  {id:'comments',app:'feed',label:'朋友圈评论与互相回复',text:'你为公开朋友圈生成0到4条简短评论。可评论用户或角色的动态，也可回复已有评论，角色之间能自然交流；没有合适话题就返回空数组，不必回复每条。只返回JSON：{"comments":[{"postId":"已存在动态ID","authorId":"角色ID","text":"评论文字","replyTo":"可选，已有评论ID"}]}。不能代用户发言，不泄露私聊，保持人设，避免重复、无端争吵和机械刷屏。优先让preferredAuthor评论；其他角色只写有明确人设依据的日常反应，不编造职业。'},
   {
     "id": "style",
