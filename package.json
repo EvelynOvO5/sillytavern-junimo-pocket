@@ -1,20 +1,10 @@
 {
   "name": "sillytavern-junimo-pocket",
-  "version": "0.15.1",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js community.test.js app-prompts.test.js phone-records.test.js features-014.test.js features-015.test.js features-0151.test.js",
-    "build": "node build.mjs"
-  }
-}
-{
-  "name": "sillytavern-junimo-pocket",
-  "version": "0.15.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js community.test.js app-prompts.test.js phone-records.test.js features-014.test.js features-015.test.js",
+    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js community.test.js app-prompts.test.js phone-records.test.js features-014.test.js features-015.test.js features-0151.test.js animals.test.js",
     "build": "node build.mjs"
   }
 }
