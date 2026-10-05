@@ -3,7 +3,7 @@ import {parseResponseJSON} from './json-response.js';
 import {parseChatReply} from './chat-protocol.js';
 import {groups} from './phone-memory.js';
 
-const progressKeys=['herd','manual','letters','mailQuests','socialEvents','posts','comments','catalog','offerings','draft','unread','chatRound','mailRound'];
+const progressKeys=['offeringRewards','herd','manual','letters','mailQuests','socialEvents','posts','comments','catalog','offerings','draft','unread','chatRound','mailRound'];
 export function checkpoint(s){return Object.fromEntries(progressKeys.map(k=>[k,structuredClone(s[k]??null)]));}
 export function rollback(s,index){const turn=s.turns[index];if(!turn)return false;if(turn.before)for(const k of progressKeys){if(turn.before[k]===null)delete s[k];else s[k]=structuredClone(turn.before[k]);}s.manual??=[];s.unread??={};s.pendingNarrativeRevision=turn.socialRevision??0;s.turns.splice(index);return true;}
 export function reconcileRounds(s,signatures){let i=0;while(i<s.turns.length&&s.turns[i].signature===signatures[i])i++;if(i<s.turns.length)rollback(s,i);return i;}
