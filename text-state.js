@@ -1,3 +1,4 @@
+import {parseMaterials,materialText,progressionInstruction} from './progression.js';
 import {clone,validatePatch} from './core.js';
 export const TEXT_START='【手机状态】',TEXT_END='【状态结束】';
 const regions={西部:'west',中心:'center',北部:'north',南部:'south',东部:'east'};
@@ -21,8 +22,8 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  const list=(key,value)=>{if(!lists.has(key)){patch[key]=[];lists.add(key);}if(value)patch[key].push(value);};
  const segments=raw.slice(start+TEXT_START.length,end).replace(/<br\s*\/?\s*>/gi,'\n').split('\n').map(line=>line.trim().replace(/^[-*]\s+/,'').replace(/\*\*/g,''));
  const joined=[];
- const field=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录)[：:]/;
- const fieldOnly=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录)$/;
+ const field=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能)[：:]/;
+ const fieldOnly=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能)$/;
  for(const line of segments){
   if(!line||/^\x60\x60\x60/.test(line))continue;
   const last=joined.at(-1)||'',row=last.match(field);
@@ -44,6 +45,10 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
  case '建筑':list('buildings',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{})});break;
  case '日程':list('calendarEvents',a==='无'?null:{name:a,season:b,day:num(c),detail:d||'',person:e==='无'?'':e||''});break;
+ case '图纸':list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
+ case '工程':list('farmProjects',{name:a,status:b,materials:parseMaterials(c),gold:num(d),days:num(e),source:f||'',description:g||''});break;
+ case '穿着':(patch.player??={}).outfit=v.join('｜');break;
+ case '技能':((patch.player??={}).skills??={})[a]=num(b);break;
  case '记录':patch.notes=v.join('｜');break;
  default:throw Error('未知状态栏目：'+key);
  }}catch(e){warnings.push(key+'：'+e.message);if(listKeys[key])invalidLists.add(listKeys[key]);}}
@@ -56,9 +61,10 @@ export function formatState(state,roles=[],anchors={}){
  add('背包',s.inventory.map(x=>[x.name,x.count,({item:'物品',seed:'种子',fertilizer:'肥料'})[x.kind||'item'],x.priceUnknown?'未知':x.price||0,x.days||'未知'].join('|')));
  add('农田',s.plots.flatMap((x,i)=>x.crop?[[i+1,x.crop,({seeded:'播种',growing:'生长',mature:'成熟'})[x.stage]||(x.days===0?'成熟':'生长'),x.days??'未知',x.wet?'已浇':'未浇',x.fertilizer||'无'].join('|')]:[]));
  for(const r of roles){const p=s.locations[r.id];if(p){const place=Object.entries(anchors).find(([,a])=>a.region===p.region&&a.x===p.x&&a.y===p.y)?.[0];lines.push('位置：'+r.name+'|'+(place||[Object.keys(regions).find(k=>regions[k]===p.region)||p.region,p.x,p.y].join('|')));}lines.push('好感：'+r.name+'|'+(s.relationships[r.id]||0));}
- add('任务',(s.quests||[]).map(x=>[x.name,x.status,x.progress||0,x.goal||'',x.reward||'',x.deadline||'',x.detail||''].join('|')));add('建筑',(s.buildings||[]).map(x=>[x.name,x.status,x.progress||0].join('|')));add('动物',(s.animals||[]).map(x=>[x.name,x.status].join('|')));add('日程',(s.calendarEvents||[]).map(x=>[x.name,x.season,x.day,x.detail||'',x.person||'无'].join('|')));if(s.notes)lines.push('记录：'+s.notes.replace(/\n/g,' '));lines.push(TEXT_END);return lines.join('\n');
+ add('任务',(s.quests||[]).map(x=>[x.name,x.status,x.progress||0,x.goal||'',x.reward||'',x.deadline||'',x.detail||''].join('|')));add('建筑',(s.buildings||[]).map(x=>[x.name,x.status,x.progress||0].join('|')));add('动物',(s.animals||[]).map(x=>[x.name,x.status].join('|')));add('日程',(s.calendarEvents||[]).map(x=>[x.name,x.season,x.day,x.detail||'',x.person||'无'].join('|')));if(s.notes)lines.push('记录：'+s.notes.replace(/\n/g,' '));if(s.player?.outfit)lines.push('穿着：'+s.player.outfit.replace(/\n/g,' '));for(const [k,n] of Object.entries(s.player?.skills||{}))lines.push('技能：'+k+'|'+n);for(const r of s.recipes||[])lines.push('图纸：'+[r.name,r.category,r.product,r.quantity,materialText(r.materials),r.gold||0,r.learned?'已学习':'未学习',r.source||'',r.description||''].join('|'));for(const r of s.farmProjects||[])lines.push('工程：'+[r.name,r.status,materialText(r.materials),r.gold||0,r.days,r.source||'',r.description||''].join('|'));lines.push(TEXT_END);return lines.join('\n');
 }
-export function textStatePrompt(state,roles,anchors,initial){return `【手机文字状态摘要规则】
+export function textStatePrompt(state,roles,anchors,initial){return `${progressionInstruction}
+【手机文字状态摘要规则】
 在正文最后附上简短文字摘要，以${TEXT_START}开始、${TEXT_END}结束。禁止 JSON、代码块或逐个列出空地。每行一个栏目，字段用 | 分隔，字段内不写换行或 |。未变化的栏目不写；列表栏目（背包/任务/动物/建筑/日程）一旦变化须列完整列表，为空仅写“栏目：无”。位置、好感、农田只写变化的角色或格子，所有数值是变化后的绝对值。
 ${initial?'首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。':'保留未改变的值，不要每轮列全部角色和空地。'}
 每一轮都必须复核并输出“时间”。时间为故事时间，不是电脑时钟；谈话、走路、劳动都应按正文实际耗时推进分钟，跨日同步日期。明确无时间流逝才保持不变，禁止一直机械沿用开场06:00，也不能无依据跳过几小时。
