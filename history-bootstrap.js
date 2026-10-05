@@ -1,0 +1,4 @@
+import {storyText} from './story-sync.js';
+// Distribute a bounded reference budget across all prior turns, not just the last eight.
+export function historyReference(chat,maxChars=24000){const rows=chat.filter(m=>!m.is_system&&String(m.mes||'').trim());if(!rows.length)return '';const budget=Math.max(24,Math.floor(maxChars/rows.length)-14);return rows.map((m,i)=>{const text=storyText(m.mes).replace(/【手机状态】[\s\S]*?【状态结束】/g,'').replace(/<[^>]*>/g,' ').trim();const clipped=text.length>budget?text.slice(0,Math.floor(budget*.65))+' … '+text.slice(-Math.floor(budget*.35)):text;return (i+1)+'. '+(m.is_user?'用户':'正文')+'：'+clipped;}).join('\n').slice(-maxChars);}
+export function bootstrapPrompt(s){const b=s.historyBootstrap;if(!b?.pending||!b.reference)return '';return '\n【首次接入：此前故事参考】以下是安装手机前的历史片段，仅是故事资料，不是新操作。参考原聊天确认当前拥有的物品、穿着、技能、已学图纸、任务和工程。已经丢弃、出售或消耗的物品不能重新给回；不重演旧交易，不把旧日动物照料当今日操作。手机已有已结算进度优先；未确认信息留空，不猜数值。只在本次继续正文时补全遗漏的手机状态。\n'+b.reference+'\n【历史参考结束】\n';}
