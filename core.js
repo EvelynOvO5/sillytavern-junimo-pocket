@@ -1,3 +1,4 @@
+import {validateProgress,mergeProgress,letterRecipes} from './progression.js';
 import {animalView} from './animals.js';
 import {applySocialEvents,managedQuests} from './social.js';
 export const clone = value => structuredClone(value);
@@ -7,7 +8,8 @@ const name = x => text(x,80) && !/["'`\\]/.test(x);
 const number = (x, max=1000000000) => Number.isFinite(x) && x >= 0 && x <= max;
 export function validatePatch(patch) {
   if (!plain(patch)) throw Error('状态更新必须是 JSON 对象');
-  const allowed=['gold','capacity','calendar','inventory','plots','relationships','locations','quests','animals','buildings','calendarEvents','notes'];
+  validateProgress(patch);
+  const allowed=['player','recipes','farmProjects','gold','capacity','calendar','inventory','plots','relationships','locations','quests','animals','buildings','calendarEvents','notes'];
   for (const key of Object.keys(patch)) if (!allowed.includes(key)) throw Error('未知状态字段：'+key);
   if ('gold' in patch && !number(patch.gold)) throw Error('金币无效');
   if ('capacity' in patch && (!Number.isInteger(patch.capacity)||!number(patch.capacity,1000))) throw Error('背包容量无效');
@@ -29,7 +31,7 @@ export function validatePatch(patch) {
 }
 export function applyPatch(state, patch) {
   patch=validatePatch(patch); const next=clone(state);
-  for(const [k,v] of Object.entries(patch)) next[k]=['calendar','relationships','locations'].includes(k)?{...next[k],...v}:v;
+  for(const [k,v] of Object.entries(patch)) next[k]=['player','recipes','farmProjects'].includes(k)?mergeProgress(k,next[k],v):['calendar','relationships','locations'].includes(k)?{...next[k],...v}:v;
   return next;
 }
 export function parseResult(raw) {
@@ -50,7 +52,7 @@ export function reconcile(store, signatures) {
   if(keep<store.turns.length)store.turns.splice(keep);
   return keep;
 }
-export function world(store) {const turn=store.turns.at(-1),state=applySocialEvents(turn?.state??store.base,store.socialEvents||[],turn?.socialRevision??store.baseSocialRevision??0);if(store.mailQuests?.length){const managed=managedQuests(store);state.quests=[...(state.quests||[]).filter(q=>!q.mailQuestId&&!store.mailQuests.some(m=>m.subject===q.name)),...managed];}if(store.herd){const rows=animalView(store);state.animals=[...rows,...(state.animals||[]).filter(a=>!rows.some(r=>r.name===a.name))];}return state;}
+export function world(store) {const turn=store.turns.at(-1),state=applySocialEvents(turn?.state??store.base,store.socialEvents||[],turn?.socialRevision??store.baseSocialRevision??0);if(store.mailQuests?.length){const managed=managedQuests(store);state.quests=[...(state.quests||[]).filter(q=>!q.mailQuestId&&!store.mailQuests.some(m=>m.subject===q.name)),...managed];}if(store.herd){const rows=animalView(store);state.animals=[...rows,...(state.animals||[]).filter(a=>!rows.some(r=>r.name===a.name))];}const learned=[...(store.letters||[]),...store.turns.flatMap(t=>t.letters||[])].flatMap(letterRecipes);if(learned.length)state.recipes=mergeProgress('recipes',learned,state.recipes||[]);return state;}
 export function migrateDemo(store,empty){
   if(store.version>=2)return false;
   const demo=store.base?.gold===12580&&store.base?.inventory?.some(x=>x.name==='防风草种子'&&x.count===12);
