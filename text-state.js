@@ -1,3 +1,4 @@
+import {renderAppPrompt} from './app-prompts.js';
 import {parseMaterials,materialText,progressionInstruction} from './progression.js';
 import {clone,validatePatch} from './core.js';
 export const TEXT_START='【手机状态】',TEXT_END='【状态结束】';
@@ -63,27 +64,4 @@ export function formatState(state,roles=[],anchors={}){
  for(const r of roles){const p=s.locations[r.id];if(p){const place=Object.entries(anchors).find(([,a])=>a.region===p.region&&a.x===p.x&&a.y===p.y)?.[0];lines.push('位置：'+r.name+'|'+(place||[Object.keys(regions).find(k=>regions[k]===p.region)||p.region,p.x,p.y].join('|')));}lines.push('好感：'+r.name+'|'+(s.relationships[r.id]||0));}
  add('任务',(s.quests||[]).map(x=>[x.name,x.status,x.progress||0,x.goal||'',x.reward||'',x.deadline||'',x.detail||''].join('|')));add('建筑',(s.buildings||[]).map(x=>[x.name,x.status,x.progress||0].join('|')));add('动物',(s.animals||[]).map(x=>[x.name,x.status].join('|')));add('日程',(s.calendarEvents||[]).map(x=>[x.name,x.season,x.day,x.detail||'',x.person||'无'].join('|')));if(s.notes)lines.push('记录：'+s.notes.replace(/\n/g,' '));if(s.player?.outfit)lines.push('穿着：'+s.player.outfit.replace(/\n/g,' '));for(const [k,n] of Object.entries(s.player?.skills||{}))lines.push('技能：'+k+'|'+n);for(const r of s.recipes||[])lines.push('图纸：'+[r.name,r.category,r.product,r.quantity,materialText(r.materials),r.gold||0,r.learned?'已学习':'未学习',r.source||'',r.description||''].join('|'));for(const r of s.farmProjects||[])lines.push('工程：'+[r.name,r.status,materialText(r.materials),r.gold||0,r.days,r.source||'',r.description||''].join('|'));lines.push(TEXT_END);return lines.join('\n');
 }
-export function textStatePrompt(state,roles,anchors,initial){return `${progressionInstruction}
-【手机文字状态摘要规则】
-在正文最后附上简短文字摘要，以${TEXT_START}开始、${TEXT_END}结束。禁止 JSON、代码块或逐个列出空地。每行一个栏目，字段用 | 分隔，字段内不写换行或 |。未变化的栏目不写；列表栏目（背包/任务/动物/建筑/日程）一旦变化须列完整列表，为空仅写“栏目：无”。位置、好感、农田只写变化的角色或格子，所有数值是变化后的绝对值。
-${initial?'首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。':'保留未改变的值，不要每轮列全部角色和空地。'}
-每一轮都必须复核并输出“时间”。时间为故事时间，不是电脑时钟；谈话、走路、劳动都应按正文实际耗时推进分钟，跨日同步日期。明确无时间流逝才保持不变，禁止一直机械沿用开场06:00，也不能无依据跳过几小时。
-每轮检查参与互动角色对用户的好感变化，依据世界书和互动质量小幅增减，输出更新后0到2500的总点数（不是增量）。未互动角色不变，不能无理由全员增加。正负互动都应反映，不要一直遗漏好感栏。
-时间字段写明日、年，星期不能当成年份；年份不确定可省略。每件背包物品单独一行，不要用逗号挤在同一行。任务或建筑进度不确定写未知。任务必须按 名称|状态|数字进度或未知|目标|奖励|期限|详情 排列；不要省略进度栏，也不要把时间进度或任务目标塞进数字进度栏。
-格式示例（值按正文填写，未变化可省略）：
-时间：春季|1日|星期一|06:15|晴|第1年
-金币：500
-容量：24
-背包：草莓种子|2|种子|10|8
-农田：1|草莓|播种|8|已浇|无
-位置：哈兰|邮局
-好感：哈兰|15
-任务：初次播种|进行中|50|播种两格|100金币|今天|任务详情
-动物：鸡|已喂食
-建筑：鸡舍|建设中|20
-日程：花舞节|春季|24|前往森林|无
-记录：今天结识了新朋友
-背包格式为名称|数量|物品或种子或肥料|单价|生长天数（未知写未知）。相邻多格内容一致时可合写，如“农田：1-15|防风草|播种|未知|未浇|无”，格号必须对应实际行动，不能自动重排。农田格式为格号|作物（空地写无）|播种或生长或成熟或空地|剩余天数（未知写未知）|已浇或未浇|肥料（没有写无）。播种不能成熟，只有成熟才天数0；空地天数写未知。所有农田清空才写“农田：无”。不修改没有发生的状态。
-位置与好感仅输出以下名单中的角色，不要输出用户本人或系统小爱。每条状态写在同一个自然行内，绝不能把姓名、年份、地点拆到下一行；禁止逐字换行。角色名单：${roles.map(r=>r.name).join('、')}。位置只写角色现在所在的一个地点，不要把出发地、途经地或目的地并列写进位置栏。优先写地图标准地名，例如“位置：塞勒斯|你的牧场”；木桥旁、门口、房间等细节留在正文。用户姓名+农场/牧场均指你的牧场（例如林娇农场、林娇的牧场木桥旁），塞勒斯牧场属于塞勒斯牧场工坊，不能混淆。位置优先使用这些地点：${Object.keys(anchors).join('、')}；无匹配地点才写“位置：角色|西部或中心或北部或南部或东部|横坐标0到100|纵坐标0到100”。
-当前还没有地图位置的角色：${roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无'}。这些角色无论本轮是否出场，都必须依据世界书与时刻写一行初始位置；不能只写用户位置来替代。之后只写移动者。背包未知价格或天数写“未知”，不要把数量写成未知。
-已确认状态（仅供参照，不要整段复制）：\n${formatState(state,roles,anchors)}`;}
+export function textStatePrompt(state,roles,anchors,initial,overrides={}){return renderAppPrompt('state',overrides,{progression:renderAppPrompt('progression',overrides),initialRule:initial?"首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。":'保留未改变的值，不要每轮列全部角色和空地。',roleNames:roles.map(r=>r.name).join('、'),places:Object.keys(anchors).join('、'),missingRoles:roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无',state:formatState(state,roles,anchors)});}

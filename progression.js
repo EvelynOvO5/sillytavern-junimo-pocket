@@ -12,7 +12,21 @@ export function validateProgress(p){
 export function mergeProgress(key,previous,value){if(key==='player')return {...previous,...value,skills:{...previous?.skills,...value.skills}};const map=new Map((previous||[]).map(r=>[r.name,r]));for(const r of value)map.set(r.name,r);return [...map.values()];}
 export function materialText(materials){return materials.map(m=>m.name+'×'+m.count).join('、')||'无';}
 export function parseMaterials(text){if(!text||text==='无')return [];return text.split(/[、,，]/).map(s=>{const m=s.trim().match(/^(.+?)[×x*]\s*(\d+)$/);if(!m)throw Error('材料请写物品×数量');return {name:m[1].trim(),count:+m[2]};});}
-export function letterRecipes(letter){if(!letter.read)return [];const result=[];for(const line of (letter.body||'').split('\n')){const match=line.trim().replace(/\*\*/g,'').match(/^图纸[：:]\s*(.+)$/);if(!match)continue;const [name,category,product,quantity,materials,gold,learned,source,description]=match[1].split(/[|｜]/).map(x=>x.trim());try{const r={name,category,product,quantity:Number(quantity),materials:parseMaterials(materials),gold:Number(gold),learned:learned==='已学习',source:source||'来信：'+letter.subject,description:description||''};validateProgress({recipes:[r]});if(r.learned)result.push(r);}catch{}}return result;}
+export function letterAttachments(letter){
+ const recipes=[],warnings=[],body=[];
+ for(const line of (letter.body||'').split('\n')){
+  const m=line.trim().replace(/\*\*/g,'').match(/^图纸[：:]\s*(.+)$/);
+  if(!m){body.push(line);continue;}
+  let fields=m[1].split(/[|｜]/).map(x=>x.trim());
+  // Older models sometimes merged the name and category, as in 木箱家具|木箱|1|…
+  if(fields.length===8){const head=fields[0].match(/^(.+?)(工业|食物|家具)$/);if(head)fields=[head[1],head[2],...fields.slice(1)];}
+  const [name,category,product,quantity,materials,gold,learned,source,...details]=fields;
+  try{if(fields.length<9||!quantity||!gold||!['已学习','未学习'].includes(learned))throw Error('missing');const r={name,category,product,quantity:Number(quantity),materials:parseMaterials(materials),gold:Number(gold),learned:false,source:source||'来信：'+letter.subject,description:details.join('｜')};validateProgress({recipes:[r]});if(!recipes.some(x=>x.name===r.name))recipes.push(r);}
+  catch{warnings.push(name||'图纸');}
+ }
+ return {body:body.join('\n').trim(),recipes,warnings};
+}
+export function letterRecipes(letter){return letter.read?letterAttachments(letter).recipes.map(r=>({...r,learned:true})):[];}
 export function craftTransaction(state,name,quantity){const r=(state.recipes||[]).find(r=>r.name===name);if(!r?.learned)throw Error('尚未学习这张图纸');if(!whole(quantity,99)||!quantity)throw Error('制作数量须为1到99');const items=r.materials.map(m=>{const owned=state.inventory.find(x=>x.name===m.name);if(!owned||owned.count<m.count*quantity)throw Error(m.name+'不足');return {...owned,count:-m.count*quantity};});const gold=(r.gold||0)*quantity;if(state.gold<gold)throw Error('金币不足');const product=state.inventory.find(x=>x.name===r.product)||{name:r.product,kind:'item',price:0,priceUnknown:true};items.push({...product,count:r.quantity*quantity});return {gold:-gold,items,description:'制作 '+r.product+' ×'+r.quantity*quantity+'（配方：'+r.name+'；已扣材料与费用）'};}
 export function projectTransaction(state,name){const r=(state.farmProjects||[]).find(r=>r.name===name);if(!r||r.status!=='推荐')throw Error('项目已开工或不存在');const items=r.materials.map(m=>{const owned=state.inventory.find(x=>x.name===m.name);if(!owned||owned.count<m.count)throw Error(m.name+'不足');return {...owned,count:-m.count};});if(state.gold<(r.gold||0))throw Error('金币不足');return {gold:-(r.gold||0),items,description:'开工 '+name+'，工期 '+r.days+' 天，'+r.description+'（材料与金币已扣，正文按工期推进，不能再次扣费）'};}
 export const progressionInstruction=`【制作、工程与成长同步】
