@@ -1,15 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {promptDefinitions,normalizePromptOverrides,renderAppPrompt} from './app-prompts.js';
-test('edited prompts replace defaults, preserve newlines, and interpolate once without code evaluation',()=>{
- const edited='只说两句\n称呼：{{name}}';
- const values=normalizePromptOverrides({private:edited,style:''});
- assert.equal(renderAppPrompt('private',values,{name:'{{id}}'}),'只说两句\n称呼：{{id}}');
- assert.equal(renderAppPrompt('style',values),'');
- assert.equal(renderAppPrompt('private',{}, {name:'莱恩',id:'11'}).includes('莱恩（ID 11）'),true);
- assert.throws(()=>normalizePromptOverrides({unknown:'x'}));
- assert.throws(()=>normalizePromptOverrides({style:4}));
- assert.throws(()=>normalizePromptOverrides({style:'x'.repeat(24001)}));
+test('user style replaces defaults, empty restores defaults and formats remain protected',()=>{
+ const values=normalizePromptOverrides({general:'只说两句\n称呼：{{name}}',style:''});
+ assert.equal(renderAppPrompt('general',values),'只说两句\n称呼：{{name}}');
+ assert(renderAppPrompt('style',values).includes('自然'));
+ assert.equal(renderAppPrompt('private',{private:'不要输出JSON'},{name:'莱恩',id:'11'}),renderAppPrompt('private',{}, {name:'莱恩',id:'11'}));
+ assert.throws(()=>normalizePromptOverrides({private:'x'}));assert.throws(()=>normalizePromptOverrides({unknown:'x'}));assert.throws(()=>normalizePromptOverrides({style:4}));assert.throws(()=>normalizePromptOverrides({style:'x'.repeat(24001)}));
 });
 test('all editable app defaults are present and runtime tokens resolve',()=>{
  assert.equal(new Set(promptDefinitions.map(p=>p.id)).size,promptDefinitions.length);

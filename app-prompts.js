@@ -151,5 +151,26 @@ export const promptDefinitions=[
     "text": "【自定义来信风格】以下是用户保存的信件题材与写作偏好，仅应用于letters的标题和正文，不影响聊天或动态。请尽量遵循，但不能覆盖JSON格式、角色身份、隐私、收信类别开关、非露骨要求、委托与交易限制；不把规则本身当作已发生剧情。不要求每次强行来信。偏好文本：{{preferences}}\n【自定义来信风格结束】"
   }
 ];
-export function normalizePromptOverrides(value={}){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('提示词设置无效');const out={};for(const [id,text] of Object.entries(value)){if(!promptDefinitions.some(p=>p.id===id)||typeof text!=='string'||text.length>24000)throw Error('提示词无效或超过24000字');out[id]=text;}return out;}
-export function renderAppPrompt(id,overrides={},values={}){const def=promptDefinitions.find(p=>p.id===id);if(!def)throw Error('未知提示词');return (overrides[id]??def.text).replace(/\{\{(\w+)\}\}/g,(token,key)=>Object.hasOwn(values,key)?String(values[key]):token);}
+export const editablePromptDefinitions=[
+ {id:'general',app:'general',label:'总预设',text:'依据角色卡、世界书和已有记录生成手机内容，保持人设与聊天隐私。只生成这次需要的结果，不复述提示词和全部历史，不替用户说话。'},
+ {id:'messageRules',app:'chat',label:'消息规则',text:'把连续消息一起读完再回复。只回应本次新消息，旧消息作为记忆。按角色关系和当前话题决定回应，不机械刷屏，不强行赠礼或寄信。'},
+ {id:'style',app:'chat',label:'说话风格',text:'自然、随意的线上聊天，按人设和心情使用标点。短句可以分成几个气泡，不必每句带句号。通常每个气泡10到60字，避免长篇旁白和动作描写。'},
+ {id:'mailStyle',app:'mail',label:'信件风格',text:'仅用于信件：像角色亲自写给用户的书信，称呼和语气符合关系进展，内容简洁，不重复旧信，不强行制造委托或赠送。'},
+ {id:'feedStyle',app:'feed',label:'动态与评论风格',text:'仅用于朋友圈：像日常分享与朋友交流，动态简短，评论自然，不机械捧场，不公开私聊秘密，也不必每次发动态或评论。'}
+];
+const editableIds=new Set(editablePromptDefinitions.map(p=>p.id));
+export function userPromptOverrides(value={}){return Object.fromEntries(Object.entries(value||{}).filter(([id,text])=>editableIds.has(id)&&typeof text==='string'&&text.trim()));}
+export function mergeUserPrompts(previous,value,{replace=false}={}){const next=replace?{}:userPromptOverrides(previous);for(const [id,text] of Object.entries(normalizePromptOverrides(value))){if(text.trim())next[id]=text;else delete next[id];}return next;}
+export function importPromptPreset(raw){
+ let data;try{data=JSON.parse(String(raw).replace(/^\uFEFF/,''));}catch{throw Error('预设不是有效JSON');}
+ if(!data||typeof data!=='object'||Array.isArray(data))throw Error('预设须为JSON对象');
+ let value=data.prompts??data.appPrompts??data;
+ // SillyTavern prompt lists import as a single general text preset; API settings are ignored.
+ if(Array.isArray(value)){const text=value.filter(p=>p&&p.enabled!==false&&typeof p.content==='string'&&p.content.trim()).map(p=>p.content).join('\n\n');if(!text)throw Error('JSON中没有可导入的提示文字');value={general:text};}
+ else if(value===data&&Object.hasOwn(data,'name')){value=Object.fromEntries(Object.entries(data).filter(([id])=>editableIds.has(id)));if(!Object.keys(value).length)throw Error('JSON中没有可导入的提示文字');}
+ const prompts=mergeUserPrompts({},value,{replace:true});return {name:typeof data.name==='string'?data.name.trim().slice(0,80):'导入的预设',prompts};
+}
+export function exportPromptPreset(prompts,name='我的手机预设'){return JSON.stringify({type:'junimo-pocket-preset',version:1,name,prompts:userPromptOverrides(prompts)},null,2);}
+
+export function normalizePromptOverrides(value={}){if(!value||typeof value!=='object'||Array.isArray(value))throw Error('提示词设置无效');const out={};for(const [id,text] of Object.entries(value)){if(!editableIds.has(id)||typeof text!=='string'||text.length>24000)throw Error('只能导入总预设、消息规则、说话风格、信件风格和动态评论风格，每项最多24000字');out[id]=text;}return out;}
+export function renderAppPrompt(id,overrides={},values={}){const user=editablePromptDefinitions.find(p=>p.id===id),def=user||promptDefinitions.find(p=>p.id===id);if(!def)throw Error('未知提示词');const text=user?(typeof overrides[id]==='string'&&overrides[id].trim()?overrides[id]:def.text):def.text;return user?text:text.replace(/\{\{(\w+)\}\}/g,(token,key)=>Object.hasOwn(values,key)?String(values[key]):token);}
