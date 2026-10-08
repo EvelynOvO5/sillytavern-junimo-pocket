@@ -1,3 +1,4 @@
+import {sha256} from './browser-compat.js';
 import {validateProgress,mergeProgress,letterRecipes} from './progression.js';
 import {animalView} from './animals.js';
 import {applySocialEvents,managedQuests} from './social.js';
@@ -42,10 +43,7 @@ export function parseResult(raw) {
   if(result.messages!==undefined && (!Array.isArray(result.messages)||result.messages.length>3||result.messages.some(x=>!plain(x)||!/^\d{2}$/.test(x.roleId)||!text(x.text,2000)))) throw Error('主动消息格式无效');
   return {patch:result.patch,messages:result.messages??[]};
 }
-export async function fingerprint(text) {
-  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');
-}
+export async function fingerprint(text){return sha256(text);}
 export function reconcile(store, signatures) {
   let keep=0;
   while(keep<store.turns.length && signatures[keep]===store.turns[keep].signature)keep++;

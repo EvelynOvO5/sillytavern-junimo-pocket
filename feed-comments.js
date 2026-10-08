@@ -1,6 +1,7 @@
+import {newId} from './browser-compat.js';
 import {parseResponseJSON} from './json-response.js';
 export function commentsFor(s,postId){return [...(s.comments||[]),...(s.turns||[]).flatMap(t=>t.comments||[])].filter(c=>c.postId===postId&&!(s.deletedCommentIds||[]).includes(c.id)).sort((a,b)=>a.created-b.created);}
-export function newComment(postId,authorId,text,replyTo){text=String(text||'').trim();if(!text||text.length>500)throw Error('评论请填写1到500字');return {id:crypto.randomUUID(),postId,authorId,text,...(replyTo?{replyTo}:{}),created:Date.now()};}
+export function newComment(postId,authorId,text,replyTo){text=String(text||'').trim();if(!text||text.length>500)throw Error('评论请填写1到500字');return {id:newId(),postId,authorId,text,...(replyTo?{replyTo}:{}),created:Date.now()};}
 export function parseComments(raw,posts,roles,existing=[],{tolerant=false,warnings=[]}={}){
  const data=parseResponseJSON(raw);if(!Array.isArray(data.comments)||data.comments.length>4)throw Error('评论格式无效');
  const accepted=[],pending=[],aliases=new Map();
