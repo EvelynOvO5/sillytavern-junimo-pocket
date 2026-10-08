@@ -46,7 +46,7 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
  case '建筑':list('buildings',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{})});break;
  case '日程':list('calendarEvents',a==='无'?null:{name:a,season:b,day:num(c),detail:d||'',person:e==='无'?'':e||''});break;
- case '图纸':list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
+ case '图纸':if(v.length<9)throw Error('需要9个字段和8个竖线');if(!/^\d+$/.test(d))throw Error('单批数量须是明确正整数，不能写未知');if(!e)throw Error('材料不能为空；无需材料才写无');if(!/^\d+$/.test(f))throw Error('金币费用须是明确整数；无额外费用写0，不能写未知');if(!['已学习','未学习'].includes(g))throw Error('学习状态须写已学习或未学习');list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
  case '工程':list('farmProjects',{name:a,status:b,materials:parseMaterials(c),gold:num(d),days:num(e),source:f||'',description:g||''});break;
  case '穿着':(patch.player??={}).outfit=v.join('｜');break;
  case '技能':((patch.player??={}).skills??={})[a]=num(b);break;
