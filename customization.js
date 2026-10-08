@@ -12,3 +12,5 @@ export function scopedChatCss(css,document){
  if(!style.sheet?.cssRules.length)throw Error('没有可应用的CSS规则，请检查格式');return render(style.sheet.cssRules);
  }finally{style.remove();}
 }
+
+export function effectiveCssPresetId(appearance={},thread={}){return Object.prototype.hasOwnProperty.call(thread,'cssPresetId')?thread.cssPresetId:appearance.defaultCssPresetId||null;}
