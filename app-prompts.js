@@ -1,3 +1,4 @@
+import {locationFormatRule} from './location-rules.js';
 import {blueprintFormatRule} from './blueprint-rules.js';
 // Editable text presets. No executable code is evaluated from user input.
 export const promptDefinitions=[
@@ -177,3 +178,5 @@ export function normalizePromptOverrides(value={}){if(!value||typeof value!=='ob
 export function renderAppPrompt(id,overrides={},values={}){const user=editablePromptDefinitions.find(p=>p.id===id),def=user||promptDefinitions.find(p=>p.id===id);if(!def)throw Error('未知提示词');const text=user?(typeof overrides[id]==='string'&&overrides[id].trim()?overrides[id]:def.text):def.text;return user?text:text.replace(/\{\{(\w+)\}\}/g,(token,key)=>Object.hasOwn(values,key)?String(values[key]):token);}
 
 for(const id of ['progression','recipes'])promptDefinitions.find(p=>p.id===id).text+='\n'+blueprintFormatRule;
+
+promptDefinitions.find(p=>p.id==='state').text+='\n'+locationFormatRule;

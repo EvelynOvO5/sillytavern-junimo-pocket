@@ -22,3 +22,7 @@ test('wrapped final columns, colon in quest name and empty friendship recover',(
  const p=readStateBlock(wrap('时间：春季|1\n日|星期一|06:15|晴|第1年\n位置：莱恩|邮\n局\n好感：无\n任务：\n主线：继承者|未接取|未知|播种|10\n0金币|今天|让农场\n焕然一新\n记录：收到新手\n礼包'),base,{roles,anchors});
  assert.equal(p.state.calendar.time,'06:15');assert.deepEqual(p.state.locations['11'],anchors.邮局);assert.equal(p.state.quests[0].name,'主线：继承者');assert.equal(p.state.quests[0].reward,'100金币');assert.equal(p.state.quests[0].detail,'让农场焕然一新');assert.equal(p.state.notes,'收到新手礼包');assert.deepEqual(p.warnings,[]);
 });
+
+test('town plaza aliases resolve only to central plaza and ambiguous combined places remain rejected',()=>{const anchors={'中心广场':{region:'center',x:50,y:40},'邮局':{region:'center',x:25,y:55}};for(const place of ['镇广场','小镇广场','月亮谷镇广场','镇广场入口'])assert.deepEqual(readStateBlock(wrap('位置：哈兰|'+place),base,{roles,anchors}).state.locations['13'],anchors.中心广场);assert.throws(()=>readStateBlock(wrap('位置：哈兰|镇广场与邮局之间'),base,{roles,anchors}));assert.throws(()=>readStateBlock(wrap('位置：哈兰|陌生镇广场'),base,{roles,anchors:{'陌生广场':{region:'east',x:1,y:1}}}));});
+
+test('a plaza explicitly belonging to another town is not guessed as the central plaza',()=>{assert.throws(()=>readStateBlock(wrap('位置：哈兰|另一座小镇广场'),base,{roles,anchors:{'中心广场':{region:'center',x:50,y:40}}}));});
