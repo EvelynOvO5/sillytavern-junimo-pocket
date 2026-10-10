@@ -1,0 +1,46 @@
+.jp-home-controls{position:absolute;z-index:4;right:17px;top:44px;display:flex;gap:7px}.jp-home-controls button{display:grid;place-items:center;width:29px;height:29px;padding:5px;border:1px solid #ffffff65;border-radius:50%;background:#f7f2fa29;color:#fff7ef;box-shadow:0 2px 7px #3c406326;backdrop-filter:blur(9px);cursor:pointer}.jp-home-controls svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}.jp-home-controls button:hover{background:#ffffff45}.jp-home-controls button:active{transform:scale(.93)}.jp-home-controls button:focus-visible{outline:2px solid #fff0c7;outline-offset:3px}#home .date-widget{margin-top:30px}#home .home-title{align-items:end}
+:host([data-jp-night]){color:#e5dfeb;--ink:#e5dfeb;--muted:#b0a4bd;--screen:#45485d;color-scheme:dark}
+:host([data-jp-night]) .device{background:linear-gradient(140deg,#9c8ba9,#73768f)!important;border-color:#aea0bc!important;box-shadow:inset 0 0 0 3px #b5a5c0,inset 0 -8px #74738c,0 10px 28px #0006!important}
+:host([data-jp-night]) .screen{background:#45485d!important;border-color:#55556b!important}
+:host([data-jp-night]) .status{background:#4c4c63f2!important;color:#d1c4dd!important;border-color:#4d3d5e!important}
+:host([data-jp-night]) #home{background-color:#8c9bc2!important;background-blend-mode:multiply}
+:host([data-jp-night]) #home:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(#74789710,#646b9120);z-index:0}
+:host([data-jp-night]) #home .home-title h1{color:#f1e8fa!important;text-shadow:0 2px 8px #1119!important}
+:host([data-jp-night]) #home .home-title :is(small,p){color:#d5cce4!important}
+:host([data-jp-night]) .date-widget{background:#657089cc!important;color:#e2d8ef!important}
+:host([data-jp-night]) .jp-home-controls button{background:#687088de;color:#dfd2ed;border-color:#9d82b540}
+:host([data-jp-night]) :is(.app,#jpSettingsApp,.app-body,#bagBody,#chatListView,#chatAffectionView,.jp-info-page,.jp-modern-sheet.jp-page){background-color:#45485d!important;color:#e5dfeb!important;background-image:none!important}
+:host([data-jp-night]) :is(.app-head,.jp-sheet-head,#jpSettingsApp .app-head,.chat-room-head,.jp-chat-tabs,.action-bar){background:#50546b!important;color:#ece5f3!important;border-color:#4c405d!important}
+:host([data-jp-night]) :is(.row,.quest,.jp-info-card,.jp-settings-card,.jp-prompt-item,.jp-item-card,.jp-offering-bundle,.jp-setting-list,.jp-avatar-setting,.jp-contact-card,.jp-comment,.jp-notify,.jp-sticker-choice,.craft-materials,.craft-stepper,.jp-work-card,.jp-player-card,.calendar .date,.jp-calendar-today){background:#5a5e76!important;color:#e5dfeb!important;border-color:#86849f!important;box-shadow:0 3px 10px #08061030!important}
+:host([data-jp-night]) :is(.jp-review-card,.modal-content,.modal-box,.jp-modern-sheet>.jp-review-card,.jp-page>.jp-review-card){background:#54576d!important;background-image:none!important;color:#e7dfef!important;border-color:#86849f!important}
+:host([data-jp-night]) :is(input:not([type=checkbox]):not([type=range]),textarea,select,.jp-name-input){background:#484c62!important;color:#efe7f7!important;border-color:#9390ac!important}
+:host([data-jp-night]) :is(input,textarea)::placeholder{color:#aa9ab7!important}
+:host([data-jp-night]) :is(h2,h3,.jp-page-intro h2,.jp-settings-hero h3,.jp-info-row,.jp-member-name,.jp-contact-name,.jp-feed-self,.jp-form-label,.jp-card-content label){color:#e7ddef!important}
+:host([data-jp-night]) :is(.sub,.tip,.jp-sheet-caption,.jp-info-hint,.jp-settings-hero p,.jp-avatar-name p,.jp-section-label,.jp-comment-delete,.jp-settings-footnote){color:#b9a7c8!important;text-shadow:none!important}
+:host([data-jp-night]) :is(.jp-status-details,.jp-settings-status,.jp-lore-info,.jp-farm-check,.jp-compose-quote,.jp-message-excerpt){background:#60607a!important;color:#cdbddc!important;border-color:#9691ad!important}
+:host([data-jp-night]) :is(.jp-primary,.jp-confirm,.jp-settings-save){background:#729580!important;color:#101e16!important}
+:host([data-jp-night]) :is(.btn,.back,.jp-icon-button,.jp-info-page button,.jp-card-content button,.jp-settings-body>button,.jp-review-card button:not(.jp-primary):not(.jp-confirm)){background:#77748f!important;color:#e1cfe9!important;border-color:#aaa0ba!important}
+:host([data-jp-night]) :is(.chat-composer,.jp-chat-tools){background:#555971!important;color:#ccbddb!important}
+:host([data-jp-night]) .chat-room-body{background-color:#8793b3;background-blend-mode:multiply}
+:host([data-jp-night]) .chat-bubble{background:#686981!important;color:#f0e8f7!important;border-color:#a19ab4!important}
+:host([data-jp-night]) .chat-message.me .chat-bubble{background:#657f7b!important;color:#eef8ef!important}
+:host([data-jp-night]) .jp-bubble-menu{background:#65617c!important;color:#f0e6fa!important}
+:host([data-jp-night]) :is(.letter-paper,.mail-paper,.jp-letter-paper){background:#5f5a68!important;color:#e8dcc5!important}
+:host([data-jp-night]) .app-body::-webkit-scrollbar-thumb{background:#655474}
+:host([data-jp-night]) .jp-social-nav{background:#50546b!important;border-color:#4c405d!important;color:#b5a6c6!important}
+:host([data-jp-night]) .jp-social-nav button{color:#b5a6c6!important;background:transparent!important}
+:host([data-jp-night]) .jp-social-nav button[aria-current=page]{background:#79738e!important;color:#e9caed!important}
+:host([data-jp-night]) :is(.jp-card-content>p,.jp-settings-card>summary,.jp-settings-hero small,.jp-status-details summary,.jp-mail-intro p,.jp-contact-card small,.chat-affection-level){color:#c8b7d4!important}
+:host([data-jp-night]) :is(.jp-mail-row,.jp-mail-commission,.chat-affection-list,.chat-affection-row,.jp-offering-requirement,.jp-animal-card,.field-dialog,.jp-task-selection){background:#5a5e76!important;color:#e5dfeb!important;border-color:#86849f!important}
+:host([data-jp-night]) .jp-letter .jp-review-card{background:repeating-linear-gradient(#5d596b 0 27px,#777085 28px)!important;color:#e7d9c9!important}
+:host([data-jp-night]) .jp-review-error{color:#f3a8ba!important}
+
+:host([data-jp-night]) :is(.qty-step,.select-btn,.batch-action,.bag-upgrade,.undo,.summary,.plot-action,.seed-pick,.inventory-item,.seed,.tag,.plot-status>span,.inventory-shelf,.seed-picker-empty,.dialog){background:#777c93!important;color:#fff4e8!important;border-color:#a5a3b7!important;box-shadow:0 2px 4px #34384b33!important}
+:host([data-jp-night]) #bag :is(.qty-step,.sell-one,.select-btn,.batch-action,.bag-upgrade,.undo,.summary){background:#727b92!important;color:#fcf3ee!important;border-color:#a9aec1!important;box-shadow:none!important}
+:host([data-jp-night]) #bag :is(.item-count,.qty-num,.basket,#bagCapacity,.app-head b,.bag-upgrade b){color:#e7ddc9!important;text-shadow:none!important}
+:host([data-jp-night]) #bag .row:before{background:#737b91!important;color:#e8dfc8!important}
+:host([data-jp-night]) :is(.tag.green,.btn.on,.seed.on,.seed-pick.selected,.inventory-item.selected){background:#758f8a!important;color:#fff6e5!important}
+:host([data-jp-night]) .app-head span,:host([data-jp-night]) .basket{color:#d3ccd8!important}
+:host([data-jp-night]) :is(.bag-scene img,.app-icon .icon-box img){filter:brightness(.88) saturate(.85)}
+:host([data-jp-night]) .home-dock,:host([data-jp-night]) .home-action{filter:brightness(.9) saturate(.85)}
+:host([data-jp-night]) .jp-home-controls button{background:#75829a60;color:#fff0ce;border-color:#d4d7e46b}
