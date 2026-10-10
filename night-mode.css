@@ -44,3 +44,8 @@
 :host([data-jp-night]) :is(.bag-scene img,.app-icon .icon-box img){filter:brightness(.88) saturate(.85)}
 :host([data-jp-night]) .home-dock,:host([data-jp-night]) .home-action{filter:brightness(.9) saturate(.85)}
 :host([data-jp-night]) .jp-home-controls button{background:#75829a60;color:#fff0ce;border-color:#d4d7e46b}
+/* Modal text panels and footer controls share the soft night palette. */
+:host([data-jp-night]) .dialog :is(.copy,.craft-materials,.finance-box,.field-summary-box){background:#50566e!important;color:#f5eee7!important;border:1px solid #9394ac!important;box-shadow:none!important}
+:host([data-jp-night]) .dialog :is(h2,p,.tip,.finance-row,.summary-item,.guide-tip){color:#eee6dd!important;text-shadow:none!important}
+:host([data-jp-night]) .modal .dialog .modal-actions button{background:#747d97!important;color:#fff7ec!important;border-color:#a6abc0!important;box-shadow:none!important}
+:host([data-jp-night]) .modal .dialog .modal-actions .confirm{background:#78998f!important;color:#fff9ed!important;border-color:#a2bdb2!important}
