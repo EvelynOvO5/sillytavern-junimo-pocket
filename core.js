@@ -1,3 +1,4 @@
+import {mergeQuests} from './quest-state.js';
 import {sha256} from './browser-compat.js';
 import {validateProgress,mergeProgress,letterRecipes} from './progression.js';
 import {animalView} from './animals.js';
@@ -32,7 +33,7 @@ export function validatePatch(patch) {
 }
 export function applyPatch(state, patch) {
   patch=validatePatch(patch); const next=clone(state);
-  for(const [k,v] of Object.entries(patch)) next[k]=['player','recipes','farmProjects'].includes(k)?mergeProgress(k,next[k],v):['calendar','relationships','locations'].includes(k)?{...next[k],...v}:v;
+  for(const [k,v] of Object.entries(patch)) next[k]=k==='quests'?mergeQuests(next[k],v):['player','recipes','farmProjects'].includes(k)?mergeProgress(k,next[k],v):['calendar','relationships','locations'].includes(k)?{...next[k],...v}:v;
   return next;
 }
 export function parseResult(raw) {

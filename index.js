@@ -1,3 +1,4 @@
+import {recoverQuestHistory} from './quest-state.js';
 import {createDevicePreferences,clampBadgePosition} from './floating-position.js';
 import {taskBatchInstruction,parseTaskBatch,applyTaskBatch} from './task-batch.js';
 import {directActionPrompt} from './action-injection.js';
@@ -83,7 +84,7 @@ const masterSwitch=createPluginSwitch({settings:config,save:()=>context().saveSe
 const active=masterSwitch.active;
 function requireActive(){if(!active())throw new DOMException('月亮谷手机已关闭','AbortError');}
 const currentId=()=>String(context().getCurrentChatId?.()??context().chatId??'');
-function store(){requireActive();if(!currentId())throw Error('请先打开一段角色对话');const s=context().chatMetadata[KEY]??(context().chatMetadata[KEY]={version:3,base:clone(ui.initial),turns:[],manual:[],unread:{},draft:null});if(s.version<3){s.legacyBackup=clone({base:s.base,turns:s.turns,manual:s.manual});s.version=3;s.base=clone(ui.initial);s.turns=[];s.started=false;s.draft=null;context().saveMetadataDebounced?.();}return s;}
+function store(){requireActive();if(!currentId())throw Error('请先打开一段角色对话');const s=context().chatMetadata[KEY]??(context().chatMetadata[KEY]={version:3,base:clone(ui.initial),turns:[],manual:[],unread:{},draft:null});if(s.version<3){s.legacyBackup=clone({base:s.base,turns:s.turns,manual:s.manual});s.version=3;s.base=clone(ui.initial);s.turns=[];s.started=false;s.draft=null;context().saveMetadataDebounced?.();}if(recoverQuestHistory(s))context().saveMetadataDebounced?.();return s;}
 function status(text){if(statusLine)statusLine.textContent=text;ui?.setStatus(text);}
 function error(e){if(e.name==='AbortError')return;status('未完成：'+e.message);ui?.toast('未完成，请到设置查看详情');}
 async function apiFailure(response,key=''){
