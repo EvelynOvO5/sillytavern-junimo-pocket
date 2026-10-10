@@ -1,3 +1,4 @@
+import {questSettlementRule} from './round-settlement.js';
 import {locationFormatRule} from './location-rules.js';
 import {blueprintFormatRule} from './blueprint-rules.js';
 // Editable text presets. No executable code is evaluated from user input.
@@ -180,3 +181,5 @@ export function renderAppPrompt(id,overrides={},values={}){const user=editablePr
 for(const id of ['progression','recipes'])promptDefinitions.find(p=>p.id===id).text+='\n'+blueprintFormatRule;
 
 promptDefinitions.find(p=>p.id==='state').text+='\n'+locationFormatRule;
+
+for(const id of ['state','repairState'])promptDefinitions.find(p=>p.id===id).text+='\n'+questSettlementRule;
