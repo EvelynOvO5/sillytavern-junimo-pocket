@@ -1,3 +1,4 @@
+import {listPersistenceRule} from './list-state.js';
 import {questPersistenceRule} from './quest-state.js';
 import {renderAppPrompt} from './app-prompts.js';
 import {parseMaterials,materialText,progressionInstruction} from './progression.js';
@@ -57,12 +58,13 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  for(const key of invalidLists)delete patch[key];for(const key of Object.keys(patch)){if(key==='plots')continue;try{validatePatch({[key]:patch[key]});}catch(e){delete patch[key];warnings.push(key+'：'+e.message);}}
  if(!Object.keys(patch).length&&warnings.length)throw Error(warnings.join('；'));return {version:1,patch,warnings};
 }
-export function formatState(state,roles=[],anchors={}){
+export function formatState(state,roles=[],anchors={},options={}){
  const s=clone(state),d=s.calendar,lines=[TEXT_START,`时间：${d.season}|${d.day}|${d.year}|${d.time}|${d.weather}|${d.weekday||''}`,`金币：${s.gold}`,`容量：${s.capacity}`];
  const add=(key,rows)=>lines.push(...(rows.length?rows.map(x=>key+'：'+x):[key+'：无']));
- add('背包',s.inventory.map(x=>[x.name,x.count,({item:'物品',seed:'种子',fertilizer:'肥料'})[x.kind||'item'],x.priceUnknown?'未知':x.price||0,x.days||'未知'].join('|')));
+ const inventory=[...s.inventory,...(options.inventoryBaseline||[]).filter(x=>!s.inventory.some(i=>i.name===x.name)).map(x=>({...x,count:0}))];
+ add('背包',inventory.map(x=>[x.name,x.count,({item:'物品',seed:'种子',fertilizer:'肥料'})[x.kind||'item'],x.priceUnknown?'未知':x.price||0,x.days||'未知'].join('|')));
  add('农田',s.plots.flatMap((x,i)=>x.crop?[[i+1,x.crop,({seeded:'播种',growing:'生长',mature:'成熟'})[x.stage]||(x.days===0?'成熟':'生长'),x.days??'未知',x.wet?'已浇':'未浇',x.fertilizer||'无'].join('|')]:[]));
  for(const r of roles){const p=s.locations[r.id];if(p){const place=Object.entries(anchors).find(([,a])=>a.region===p.region&&a.x===p.x&&a.y===p.y)?.[0];lines.push('位置：'+r.name+'|'+(place||[Object.keys(regions).find(k=>regions[k]===p.region)||p.region,p.x,p.y].join('|')));}lines.push('好感：'+r.name+'|'+(s.relationships[r.id]||0));}
  add('任务',(s.quests||[]).map(x=>[x.name,x.status,x.progress||0,x.goal||'',x.reward||'',x.deadline||'',x.detail||''].join('|')));add('建筑',(s.buildings||[]).map(x=>[x.name,x.status,x.progress||0].join('|')));add('动物',(s.animals||[]).map(x=>[x.name,x.status].join('|')));add('日程',(s.calendarEvents||[]).map(x=>[x.name,x.season,x.day,x.detail||'',x.person||'无'].join('|')));if(s.notes)lines.push('记录：'+s.notes.replace(/\n/g,' '));if(s.player?.outfit)lines.push('穿着：'+s.player.outfit.replace(/\n/g,' '));for(const [k,n] of Object.entries(s.player?.skills||{}))lines.push('技能：'+k+'|'+n);for(const r of s.recipes||[])lines.push('图纸：'+[r.name,r.category,r.product,r.quantity,materialText(r.materials),r.gold||0,r.learned?'已学习':'未学习',r.source||'',r.description||''].join('|'));for(const r of s.farmProjects||[])lines.push('工程：'+[r.name,r.status,materialText(r.materials),r.gold||0,r.days,r.source||'',r.description||''].join('|'));lines.push(TEXT_END);return lines.join('\n');
 }
-export function textStatePrompt(state,roles,anchors,initial,overrides={}){return questPersistenceRule+'\n'+renderAppPrompt('state',overrides,{progression:renderAppPrompt('progression',overrides),initialRule:initial?"首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。":'保留未改变的值，不要每轮列全部角色和空地。',roleNames:roles.map(r=>r.name).join('、'),places:Object.keys(anchors).join('、'),missingRoles:roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无',state:formatState(state,roles,anchors)});}
+export function textStatePrompt(state,roles,anchors,initial,overrides={}){return questPersistenceRule+'\n'+listPersistenceRule+'\n'+renderAppPrompt('state',overrides,{progression:renderAppPrompt('progression',overrides),initialRule:initial?"首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。":'保留未改变的值，不要每轮列全部角色和空地。',roleNames:roles.map(r=>r.name).join('、'),places:Object.keys(anchors).join('、'),missingRoles:roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无',state:formatState(state,roles,anchors)});}
