@@ -1,4 +1,3 @@
-import {normalizeSkillEvent,skillEventInstruction} from './skill-accounting.js';
 import {listPersistenceRule} from './list-state.js';
 import {questPersistenceRule} from './quest-state.js';
 import {renderAppPrompt} from './app-prompts.js';
@@ -19,15 +18,15 @@ function resolvePlace(place,anchors,userName=''){
  // A specific place wins over a shorter alias inside it; two separate destinations stay ambiguous.
  const specific=hits.filter(h=>!hits.some(other=>other.start<=h.start&&other.end>=h.end&&other.alias.length>h.alias.length));return new Set(specific.map(h=>h.name)).size===1?specific[0].spot:undefined;
 }
-export function parseTextState(raw,state,{roles=[],anchors={},userName='',skillsManaged=false}={}){
+export function parseTextState(raw,state,{roles=[],anchors={},userName=''}={}){
  const start=raw.lastIndexOf(TEXT_START);if(start<0)return null;const end=raw.indexOf(TEXT_END,start);if(end<0)throw Error('文字状态摘要未写完');
- const skillEvents=[];const patch={},lists=new Set(),warnings=[],invalidLists=new Set();const listKeys={背包:'inventory',任务:'quests',建筑:'buildings',动物:'animals',日程:'calendarEvents',农田:'plots'};const id=name=>{if(name==='维克托')name='维克多';const r=roles.find(r=>r.name===name||r.id===name);if(!r)throw Error('未收录的角色：'+name);return r.id;};
+ const patch={},lists=new Set(),warnings=[],invalidLists=new Set();const listKeys={背包:'inventory',任务:'quests',建筑:'buildings',动物:'animals',日程:'calendarEvents',农田:'plots'};const id=name=>{if(name==='维克托')name='维克多';const r=roles.find(r=>r.name===name||r.id===name);if(!r)throw Error('未收录的角色：'+name);return r.id;};
  const num=numeric;
  const list=(key,value)=>{if(!lists.has(key)){patch[key]=[];lists.add(key);}if(value)patch[key].push(value);};
  const segments=raw.slice(start+TEXT_START.length,end).replace(/<br\s*\/?\s*>/gi,'\n').split('\n').map(line=>line.trim().replace(/^[-*]\s+/,'').replace(/\*\*/g,''));
  const joined=[];
- const field=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能|经验事件)[：:]/;
- const fieldOnly=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能|经验事件)$/;
+ const field=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能)[：:]/;
+ const fieldOnly=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能)$/;
  for(const line of segments){
   if(!line||/^\x60\x60\x60/.test(line))continue;
   const last=joined.at(-1)||'',row=last.match(field);
@@ -52,13 +51,12 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName='',skills
  case '图纸':if(v.length<9)throw Error('需要9个字段和8个竖线');if(!/^\d+$/.test(d))throw Error('单批数量须是明确正整数，不能写未知');if(!e)throw Error('材料不能为空；无需材料才写无');if(!/^\d+$/.test(f))throw Error('金币费用须是明确整数；无额外费用写0，不能写未知');if(!['已学习','未学习'].includes(g))throw Error('学习状态须写已学习或未学习');list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
  case '工程':list('farmProjects',{name:a,status:b,materials:parseMaterials(c),gold:num(d),days:num(e),source:f||'',description:g||''});break;
  case '穿着':(patch.player??={}).outfit=v.join('｜');break;
- case '经验事件':skillEvents.push(normalizeSkillEvent({id:a,type:b,count:num(c),subject:d||'',evidence:v.slice(4).join('｜')}));break;
- case '技能':if(skillsManaged){warnings.push('技能经验由手机计算，已忽略正文经验总数');break;}((patch.player??={}).skills??={})[a]=num(b);break;
+ case '技能':((patch.player??={}).skills??={})[a]=num(b);break;
  case '记录':patch.notes=v.join('｜');break;
  default:throw Error('未知状态栏目：'+key);
  }}catch(e){warnings.push(key+'：'+e.message);if(listKeys[key])invalidLists.add(listKeys[key]);}}
  for(const key of invalidLists)delete patch[key];for(const key of Object.keys(patch)){if(key==='plots')continue;try{validatePatch({[key]:patch[key]});}catch(e){delete patch[key];warnings.push(key+'：'+e.message);}}
- if(!Object.keys(patch).length&&warnings.length&&!skillEvents.length&&!warnings.every(x=>x==='技能经验由手机计算，已忽略正文经验总数'))throw Error(warnings.join('；'));return {version:1,patch,warnings,skillEvents};
+ if(!Object.keys(patch).length&&warnings.length)throw Error(warnings.join('；'));return {version:1,patch,warnings};
 }
 export function formatState(state,roles=[],anchors={},options={}){
  const s=clone(state),d=s.calendar,lines=[TEXT_START,`时间：${d.season}|${d.day}|${d.year}|${d.time}|${d.weather}|${d.weekday||''}`,`金币：${s.gold}`,`容量：${s.capacity}`];
@@ -69,4 +67,4 @@ export function formatState(state,roles=[],anchors={},options={}){
  for(const r of roles){const p=s.locations[r.id];if(p){const place=Object.entries(anchors).find(([,a])=>a.region===p.region&&a.x===p.x&&a.y===p.y)?.[0];lines.push('位置：'+r.name+'|'+(place||[Object.keys(regions).find(k=>regions[k]===p.region)||p.region,p.x,p.y].join('|')));}lines.push('好感：'+r.name+'|'+(s.relationships[r.id]||0));}
  add('任务',(s.quests||[]).map(x=>[x.name,x.status,x.progress||0,x.goal||'',x.reward||'',x.deadline||'',x.detail||''].join('|')));add('建筑',(s.buildings||[]).map(x=>[x.name,x.status,x.progress||0].join('|')));add('动物',(s.animals||[]).map(x=>[x.name,x.status].join('|')));add('日程',(s.calendarEvents||[]).map(x=>[x.name,x.season,x.day,x.detail||'',x.person||'无'].join('|')));if(s.notes)lines.push('记录：'+s.notes.replace(/\n/g,' '));if(s.player?.outfit)lines.push('穿着：'+s.player.outfit.replace(/\n/g,' '));for(const [k,n] of Object.entries(s.player?.skills||{}))lines.push('技能：'+k+'|'+n);for(const r of s.recipes||[])lines.push('图纸：'+[r.name,r.category,r.product,r.quantity,materialText(r.materials),r.gold||0,r.learned?'已学习':'未学习',r.source||'',r.description||''].join('|'));for(const r of s.farmProjects||[])lines.push('工程：'+[r.name,r.status,materialText(r.materials),r.gold||0,r.days,r.source||'',r.description||''].join('|'));lines.push(TEXT_END);return lines.join('\n');
 }
-export function textStatePrompt(state,roles,anchors,initial,overrides={}){return questPersistenceRule+'\n'+listPersistenceRule+'\n'+skillEventInstruction+'\n'+renderAppPrompt('state',overrides,{progression:renderAppPrompt('progression',overrides),initialRule:initial?"首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。":'保留未改变的值，不要每轮列全部角色和空地。',roleNames:roles.map(r=>r.name).join('、'),places:Object.keys(anchors).join('、'),missingRoles:roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无',state:formatState(state,roles,anchors)});}
+export function textStatePrompt(state,roles,anchors,initial,overrides={}){return questPersistenceRule+'\n'+listPersistenceRule+'\n'+renderAppPrompt('state',overrides,{progression:renderAppPrompt('progression',overrides),initialRule:initial?"首次初始化必须写时间、背包、农田和全部角色位置，并写已建立的好感。未种植只写“农田：无”，绝不能枚举空地。依据世界书和本轮时间设定未出场角色位置。":'保留未改变的值，不要每轮列全部角色和空地。',roleNames:roles.map(r=>r.name).join('、'),places:Object.keys(anchors).join('、'),missingRoles:roles.filter(r=>!state.locations?.[r.id]).map(r=>r.name).join('、')||'无',state:formatState(state,roles,anchors)});}
