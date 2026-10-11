@@ -1,0 +1,3 @@
+export function validateFarmName(value,anchors={}){const name=String(value??'').trim();if(name.length>40||/[<>|\r\n]/.test(name))throw Error('农场名称请用40字以内的单行文字');if(name&&Object.entries(anchors).some(([key,spot])=>key!=='你的牧场'&&(key===name||spot.aliases?.includes(name))))throw Error('请与其他地图地点使用不同名称');return name;}
+export function farmAnchors(anchors,name=''){if(!name||!anchors['你的牧场'])return anchors;return {...anchors,'你的牧场':{...anchors['你的牧场'],aliases:[...(anchors['你的牧场'].aliases||[]),name]}};}
+export function farmNameMemory(name=''){return name?'\n【用户农场名称】'+JSON.stringify(name)+'是用户自己的农场名称，正文和手机聊天使用此名称；手机位置字段仍写“你的牧场”。\n':'';}
