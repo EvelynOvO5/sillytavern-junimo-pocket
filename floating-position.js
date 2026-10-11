@@ -1,6 +1,6 @@
 const KEY='junimo_pocket_device_ui_v1';
 const point=p=>p&&Number.isFinite(p.left)&&Number.isFinite(p.top)?{left:p.left,top:p.top}:null;
-export function defaultBadgePosition(width){return {left:Math.max(6,width-76),top:70};}
+export function defaultBadgePosition(width){return {left:Math.max(6,Math.min(18,width-64)),top:70};}
 export function clampBadgePosition(p,width,height){return {left:Math.max(6,Math.min(p.left,width-64)),top:Math.max(6,Math.min(p.top,height-64))};}
 export function createDevicePreferences(storage,settings,save=()=>{}){
  let local={};try{local=JSON.parse(storage.getItem(KEY)||'{}')||{};}catch{}

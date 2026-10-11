@@ -1,16 +1,16 @@
 export const EXPECTED_BOOK='⭐农民也要涩涩！';
-export function resolveBinding(ctx,boundAvatar='') {
+export function resolveBinding(ctx,boundAvatar='',boundWorldbook='') {
   if(ctx.groupId || ctx.characterId==null)throw Error('请打开月亮谷的单角色对话');
   const card=ctx.characters?.[ctx.characterId];
   const avatar=card?.avatar;
   if(!avatar)throw Error('当前角色卡尚未载入');
   if(boundAvatar && avatar!==boundAvatar)throw Error('手机仅绑定月亮谷角色卡，当前角色不读取世界书');
-  const name=card.data?.extensions?.world;
-  if(!name || (!boundAvatar && name!==EXPECTED_BOOK))throw Error('请把当前角色卡的主世界书绑定为「'+EXPECTED_BOOK+'」');
+  const name=boundWorldbook||card.data?.extensions?.world;
+  if(!name || (!boundWorldbook && !boundAvatar && name!==EXPECTED_BOOK))throw Error('请在手机设置选择世界书，或绑定角色卡的主世界书「'+EXPECTED_BOOK+'」');
   return {name,avatar};
 }
-export async function readBoundLore(ctx,boundAvatar='',signal,fetcher=fetch) {
-  const binding=resolveBinding(ctx,boundAvatar);
+export async function readBoundLore(ctx,boundAvatar='',signal,fetcher=fetch,boundWorldbook='') {
+  const binding=resolveBinding(ctx,boundAvatar,boundWorldbook);
   const timeout=new AbortController();const stop=()=>timeout.abort();signal?.addEventListener('abort',stop,{once:true});if(signal?.aborted)stop();const timer=setTimeout(stop,15000);
   try{
     // Read the linked book by name, never the editor selection or global/persona books.
