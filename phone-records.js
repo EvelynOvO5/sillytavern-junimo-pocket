@@ -1,7 +1,7 @@
 import {selectedMentionIds} from './group-social.js';
 // IDs and deletion markers belong to one chat's metadata, never global settings.
 function legacyId(m){const text=JSON.stringify([m.created,m.roleId,m.speakerId,m.from,m.type,m.text,m.mediaId]);let a=2166136261,b=5381;for(const c of text){a=Math.imul(a^c.charCodeAt(0),16777619);b=Math.imul(b,33)^c.charCodeAt(0);}return 'legacy-'+(a>>>0).toString(36)+'-'+(b>>>0).toString(36);}
-export function visibleMessages(s){return [...(s.manual||[]),...(s.turns||[]).flatMap(t=>t.messages||[])].map(m=>{m.id??=legacyId(m);return m;}).filter(m=>!(s.deletedMessageIds||[]).includes(m.id)).sort((a,b)=>a.created-b.created);}
+export function visibleMessages(s){return [...(s.manual||[]),...(s.turns||[]).flatMap(t=>t?.messages||[])].map(m=>{m.id??=legacyId(m);return m;}).filter(m=>!(s.deletedMessageIds||[]).includes(m.id)).sort((a,b)=>a.created-b.created);}
 export function quotedMessage(s,m){if(!m.quoteId)return undefined;const q=visibleMessages(s).find(q=>q.id===m.quoteId&&q.roleId===m.roleId);return q&&!q.recalled?{speaker:q.from==='me'?'用户':q.speakerId||q.roleId,text:q.text,type:q.type||'text'}:undefined;}
 export function editMessage(s,id,text,reason=''){
  const m=visibleMessages(s).find(x=>x.id===id);
