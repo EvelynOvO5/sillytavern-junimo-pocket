@@ -14,3 +14,4 @@ export function scopedChatCss(css,document,kind='thread'){
 }
 
 export function effectiveCssPresetId(appearance={},thread={}){return Object.prototype.hasOwnProperty.call(thread,'cssPresetId')?thread.cssPresetId:appearance.defaultCssPresetId||null;}
+export function removeCssPreset(appearance,id,chatAppearance={}){if(typeof id!=='string'||!(appearance.cssPresets||[]).some(p=>p.id===id))throw Error('请先选择已保存的美化预设');return {appearance:{...appearance,cssPresets:appearance.cssPresets.filter(p=>p.id!==id),...(appearance.defaultCssPresetId===id?{defaultCssPresetId:null}:{})},chatAppearance:Object.fromEntries(Object.entries(chatAppearance).map(([key,value])=>[key,value.cssPresetId===id?{...value,cssPresetId:null}:value]))};}
