@@ -7,7 +7,7 @@ export function settleActionDraft(current,submitted,before,after,{consumeNonFarm
  if(!current?.actions?.length)return null;
  const submittedActions=[...(submitted?.actions||[])];
  const remaining=current.actions.filter(action=>{const submittedIndex=submittedActions.indexOf(action),wasSubmitted=submittedIndex>=0;if(wasSubmitted)submittedActions.splice(submittedIndex,1);
- const match=action.match(/第\s*(\d+)\s*格/);if(match&&/播种|浇水|施用|收获|铲除|耕地/.test(action)){if(wasSubmitted&&conflicts.length)return true;const index=+match[1]-1;if(!after.plots?.[index])return true;const wanted=plotView(current.plots?.[index]),actual=plotView(after.plots?.[index]);if(wanted.crop!==actual.crop)return true;if(/浇水/.test(action)&&wanted.wet&&!actual.wet&&!advancedFarmDay(before,after))return true;if(/施用/.test(action)&&wanted.fertilizer!==actual.fertilizer)return true;return false;}
+ const match=action.match(/第\s*(\d+)\s*格/);if(match&&/播种|浇水|施用|收获|铲除|耕地/.test(action)){const index=+match[1]-1,actual=after.plots?.[index];if(!actual)return true;const wanted=plotView(current.plots?.[index]);if(/扩充.*耕地/.test(action))return false;if(/浇水/.test(action))return !actual.wet&&!advancedFarmDay(before,after);if(/施用/.test(action))return wanted.fertilizer!==actual.fertilizer;return wanted.crop!==actual.crop;}
  const task=action.match(/^完成任务[：:]\s*(.+)$/);if(task)return !(after.quests||[]).some(q=>q.name===task[1]&&questCompleted(q));
  return !(wasSubmitted&&consumeNonFarm);
  });
