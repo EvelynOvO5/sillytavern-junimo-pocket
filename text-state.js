@@ -1,4 +1,4 @@
-import {skillRates,normalizeSkillEvent,skillEventInstruction} from './skill-accounting.js';
+import {skillRates,isSkillEventType,normalizeSkillEvent,skillEventInstruction} from './skill-accounting.js';
 import {listPersistenceRule} from './list-state.js';
 import {questPersistenceRule} from './quest-state.js';
 import {renderAppPrompt} from './app-prompts.js';
@@ -52,7 +52,7 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName='',skills
  case '图纸':if(v.length<9)throw Error('需要9个字段和8个竖线');if(!/^\d+$/.test(d))throw Error('单批数量须是明确正整数，不能写未知');if(!e)throw Error('材料不能为空；无需材料才写无');if(!/^\d+$/.test(f))throw Error('金币费用须是明确整数；无额外费用写0，不能写未知');if(!['已学习','未学习'].includes(g))throw Error('学习状态须写已学习或未学习');list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
  case '工程':list('farmProjects',{name:a,status:b,materials:parseMaterials(c),gold:num(d),days:num(e),source:f||'',description:g||''});break;
  case '穿着':(patch.player??={}).outfit=v.join('｜');break;
- case '经验事件':{const legacy=!Object.hasOwn(skillRates,a);skillEvents.push(normalizeSkillEvent(legacy?{id:a,type:b,count:num(c),subject:d||'',evidence:v.slice(4).join('｜')}:{type:a,count:num(b),subject:c||'',evidence:v.slice(3).join('｜')}));break;}
+ case '经验事件':{const legacy=isSkillEventType(b)||!isSkillEventType(a);skillEvents.push(normalizeSkillEvent(legacy?{id:a,type:b,count:num(c),subject:d||'',evidence:v.slice(4).join('｜')}:{type:a,count:num(b),subject:c||'',evidence:v.slice(3).join('｜')}));break;}
  case '技能':if(skillsManaged){warnings.push('技能经验由手机计算，已忽略正文经验总数');break;}((patch.player??={}).skills??={})[a]=num(b);break;
  case '记录':patch.notes=v.join('｜');break;
  default:throw Error('未知状态栏目：'+key);

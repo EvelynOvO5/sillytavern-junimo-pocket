@@ -1,7 +1,15 @@
 import {skillNames,skillLevel} from './progression.js';
 export const skillRates=Object.freeze({收获作物:['耕种',8],抚摸动物:['耕种',5],采得普通矿石:['采矿',5],采得宝石:['采矿',20],野外采集:['采集',7],砍倒树木:['采集',12],钓获普通鱼:['钓鱼',12],钓获稀有鱼:['钓鱼',30],战胜普通敌人:['战斗',10],战胜强敌:['战斗',40]});
 const clean=s=>String(s||'').replace(/<[^>]*>/g,'').replace(/\s+/g,'');
-export function normalizeSkillEvent(e){if(!e||(e.id!==undefined&&(typeof e.id!=='string'||!e.id.trim()||e.id.length>80))||!Object.hasOwn(skillRates,e.type)||!Number.isInteger(e.count)||e.count<1||e.count>9999||typeof e.subject!=='string'||e.subject.length>80||typeof e.evidence!=='string'||e.evidence.length>1000)throw Error('经验事件需明确类型、数量、对象和正文依据');if(e.type==='抚摸动物'&&(e.count!==1||!e.subject.trim()))throw Error('抚摸事件每只动物单独记录');return {...e,...(e.id!==undefined?{id:e.id.trim()}:{}),subject:e.subject.trim()};}
+export function isSkillEventType(type){return Object.hasOwn(skillRates,type)||type==='采集';}
+function resolveSkillEventType(event){
+ if(event.type!=='采集')return event.type;
+ const evidence=clean(event.evidence),subject=clean(event.subject);
+ if(/(?:砍(?:倒|伐|树|掉)|伐木|砍了)/.test(evidence)&&/树|伐木/.test(subject+evidence))return '砍倒树木';
+ if(/(?:采集|采摘|摘了|摘下|捡起|捡到|捡了|拾取|收集)/.test(evidence)&&(!/树木|木材|^树$/.test(subject)||/捡|拾/.test(evidence)))return '野外采集';
+ throw Error('采集事件无法区分砍树或野外采集，请明确实际行动的正文依据');
+}
+export function normalizeSkillEvent(e){if(!e||(e.id!==undefined&&(typeof e.id!=='string'||!e.id.trim()||e.id.length>80))||!isSkillEventType(e.type)||!Number.isInteger(e.count)||e.count<1||e.count>9999||typeof e.subject!=='string'||e.subject.length>80||typeof e.evidence!=='string'||e.evidence.length>1000)throw Error('经验事件需明确类型、数量、对象和正文依据');const type=resolveSkillEventType(e);if(type==='抚摸动物'&&(e.count!==1||!e.subject.trim()))throw Error('抚摸事件每只动物单独记录');return {...e,type,...(e.id!==undefined?{id:e.id.trim()}:{}),subject:e.subject.trim()};}
 export function applySkillDeltas(state,deltas={}){if(!deltas||Array.isArray(deltas)||Object.entries(deltas).some(([k,n])=>!skillNames.includes(k)||!Number.isInteger(n)||n<0||n>1000000))throw Error('技能经验增量无效');const next=structuredClone(state);next.player={...next.player,skills:{...next.player?.skills}};for(const [skill,n] of Object.entries(deltas))next.player.skills[skill]=Math.min(15000,(next.player.skills[skill]||0)+n);return next;}
 export const skillDay=c=>[c?.year||0,c?.season||'未确认',c?.day||0].join(':');
 const automaticEventIdentity=e=>JSON.stringify([skillRates[e.type][0],e.count,clean(e.subject),clean(e.evidence)]);
