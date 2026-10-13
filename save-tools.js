@@ -17,7 +17,21 @@ export function quarantineCraftConflict(s,id){
 export function resolvePendingItem(s,id,choice){const row=s.pendingItemResolutions?.find(x=>x.id===id&&x.status==='pending');if(!row)throw Error('该成品已核对或不存在');const state=world(s),owned=state.inventory.find(x=>x.name===row.name)?.count||0;if(choice==='return'){if(owned)throw Error('背包已有该物品，请核对后选择“已经在背包中”');appendTransaction(s,state,{id:'resolve-'+row.id,items:[{name:row.name,count:row.count,kind:'item',price:0,priceUnknown:true}],description:'用户确认找回旧制作成品 '+row.name});}else if(choice==='present'){if(owned<row.count)throw Error('背包数量不足，不能确认已在背包中');}else if(choice!=='used')throw Error('请选择明确的处理方式');row.status=choice;}
 const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','skillEventLog','letters','posts','comments','mailQuests','herd'];
 export function saveProgressBackup(s){return Object.fromEntries(backupKeys.map(k=>[k,copy(s[k]??null)]));}
-export function applyConfirmedBaseline(s,state,rows){validatePatch(state);const saved=saveProgressBackup(s);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
+
+// Confirmed status only: rewards and materials are already accounted for elsewhere.
+export function syncConfirmedMailQuestStatuses(s,quests=[]){
+ let changed=false;const key=x=>String(x||'').normalize('NFKC').trim();
+ for(const task of quests){if(!/^(?:已结算|已领取|已交付|completed)(?:$|[（( ·：:,，。;；/、])/i.test(String(task.status||'').trim()))continue;
+  const matches=(s.mailQuests||[]).filter(q=>task.mailQuestId?q.id===task.mailQuestId:key(q.subject)===key(task.name));
+  if(matches.length!==1||matches[0].status==='completed')continue;matches[0].status='completed';matches[0].completed=Date.now();matches[0].manualStatusConfirmed=true;changed=true;
+ }return changed;
+}
+export function repairSavedMailQuestBaseline(s){
+ if(!s.backup||!s.turns?.length||!s.turns.every(t=>t?.playerCorrectionSnapshot))return false;
+ const latest=s.turns.at(-1).state;const confirmed=(s.base?.quests||[]).filter(q=>(latest?.quests||[]).some(t=>t.name===q.name&&t.status===q.status&&t.mailQuestId===q.mailQuestId));
+ return syncConfirmedMailQuestStatuses(s,confirmed);
+}
+export function applyConfirmedBaseline(s,state,rows){validatePatch(state);const saved=saveProgressBackup(s);syncConfirmedMailQuestStatuses(s,state.quests);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
 export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=copy(saved[key]);}}
 export function confirmConflictRepair(s,state,patch){
  const snap=repairSnapshot(s);if(!snap.conflict)return;
