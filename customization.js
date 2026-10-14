@@ -17,3 +17,5 @@ export function effectiveCssPresetId(appearance={},thread={}){return Object.prot
 export function removeCssPreset(appearance,id,chatAppearance={}){if(typeof id!=='string'||!(appearance.cssPresets||[]).some(p=>p.id===id))throw Error('请先选择已保存的美化预设');return {appearance:{...appearance,cssPresets:appearance.cssPresets.filter(p=>p.id!==id),...(appearance.defaultCssPresetId===id?{defaultCssPresetId:null}:{})},chatAppearance:Object.fromEntries(Object.entries(chatAppearance).map(([key,value])=>[key,value.cssPresetId===id?{...value,cssPresetId:null}:value]))};}
 
 export function resetCssAppearance(appearance={},chatAppearance={}){return {appearance:{...appearance,defaultCssPresetId:null},chatAppearance:Object.fromEntries(Object.entries(chatAppearance).map(([id,entry])=>[id,{...entry,cssPresetId:null}]))};}
+
+export function resetPhoneAppearance(appearance={},chatAppearance={}){const next=resetCssAppearance(appearance,chatAppearance);next.appearance={...next.appearance,homeWallpaper:null,listWallpaper:null,icons:{}};next.chatAppearance=Object.fromEntries(Object.entries(next.chatAppearance).map(([id,entry])=>[id,{...entry,wallpaper:null}]));return next;}
