@@ -23,4 +23,4 @@ export function commitPlayerRepair(s,result){
   for(let i=event.floor+1;i<(s.turns||[]).length;i++){const before=s.turns[i]?.before;if(before){before.skillEventLog??=[];if(!before.skillEventLog.some(e=>e.key===event.key))before.skillEventLog.push(structuredClone(event));}}
  }
 }
-export const playerRepairInstruction='校正穿着时把正文明确的当前衣物与配饰写为“穿着：具体内容”；只写在记录或说明里无法更新穿着。校正经验时输出“经验事件：事件类型|实际数量|对象|对应正文原句”，由手机计分；不以正文宣称的等级代替实际事件，依据必须来自实际正文而非用户要求。';
+export const playerRepairInstruction='校正穿着时把正文明确的当前衣物与配饰写为“穿着：具体内容”；只写在记录或说明里无法更新穿着。校正经验时输出“经验事件：事件类型|实际数量|对象|对应正文原句|普通或银星或金星或紫星”，由手机计分；不以正文宣称的等级代替实际事件，依据必须来自实际正文而非用户要求。';

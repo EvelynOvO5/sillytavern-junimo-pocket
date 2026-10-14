@@ -1,3 +1,5 @@
+import {syncExpiredMailQuests} from './quest-state.js';
+import {sameItem,itemCount,itemKey} from './item-quality.js';
 import {world,validatePatch,applyPatch} from './core.js';
 import {socialRevision,appendTransaction} from './social.js';
 import {recoveryCandidates,applyRecoveredMessages} from './message-recovery.js';
@@ -7,15 +9,15 @@ export function repairSnapshot(s){try{return {state:world(s),conflict:false,pend
 export function quarantineCraftConflict(s,id){
  const event=s.socialEvents?.find(e=>e.id===id);if(!event?.id.startsWith('craft-')||event.gold||event.skillsXp||!event.items?.some(x=>x.count<0)||!event.items.some(x=>x.count>0))throw Error('只能隔离有材料与成品记录的无金币旧制作，请手动核对其他交易');
  const latest=s.turns?.findLast(t=>t?.state)?.state||s.base;
- if(event.items.some(x=>(latest.inventory.find(i=>i.name===x.name)?.count||0)!==0))throw Error('这笔交易已有物品数量，不能按缺失制作隔离');
+ if(event.items.some(x=>(itemCount(latest.inventory,x))!==0))throw Error('这笔交易已有物品数量，不能按缺失制作隔离');
  s.transactionResolutions??={};if(s.transactionResolutions[id])return false;
- s.transactionResolutions[id]={items:event.items.map(x=>({name:x.name,count:x.count})),reason:'旧制作成品待用户核对'};
- s.pendingItemResolutions??=[];for(const item of event.items.filter(x=>x.count>0))s.pendingItemResolutions.push({id:id+':'+item.name,eventId:id,name:item.name,count:item.count,status:'pending'});
+ s.transactionResolutions[id]={items:event.items.map(x=>({name:x.name,count:x.count,...(x.quality!==undefined?{quality:x.quality}:{})})),reason:'旧制作成品待用户核对'};
+ s.pendingItemResolutions??=[];for(const item of event.items.filter(x=>x.count>0))s.pendingItemResolutions.push({id:id+':'+item.name,eventId:id,name:item.name,count:item.count,...(item.quality!==undefined?{quality:item.quality}:{}),status:'pending'});
  for(const t of s.turns||[])if(t.before?.socialEvents?.some(e=>e.id===id)){t.before.transactionResolutions=copy(s.transactionResolutions);t.before.pendingItemResolutions=copy(s.pendingItemResolutions);}
  return true;
 }
-export function resolvePendingItem(s,id,choice){const row=s.pendingItemResolutions?.find(x=>x.id===id&&x.status==='pending');if(!row)throw Error('该成品已核对或不存在');const state=world(s),owned=state.inventory.find(x=>x.name===row.name)?.count||0;if(choice==='return'){if(owned)throw Error('背包已有该物品，请核对后选择“已经在背包中”');appendTransaction(s,state,{id:'resolve-'+row.id,items:[{name:row.name,count:row.count,kind:'item',price:0,priceUnknown:true}],description:'用户确认找回旧制作成品 '+row.name});}else if(choice==='present'){if(owned<row.count)throw Error('背包数量不足，不能确认已在背包中');}else if(choice!=='used')throw Error('请选择明确的处理方式');row.status=choice;}
-const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','skillEventLog','letters','posts','comments','mailQuests','herd'];
+export function resolvePendingItem(s,id,choice){const row=s.pendingItemResolutions?.find(x=>x.id===id&&x.status==='pending');if(!row)throw Error('该成品已核对或不存在');const state=world(s),owned=itemCount(state.inventory,row);if(choice==='return'){if(owned)throw Error('背包已有该物品，请核对后选择“已经在背包中”');appendTransaction(s,state,{id:'resolve-'+row.id,items:[{name:row.name,count:row.count,...(row.quality!==undefined?{quality:row.quality}:{}),kind:'item',price:0,priceUnknown:true}],description:'用户确认找回旧制作成品 '+row.name});}else if(choice==='present'){if(owned<row.count)throw Error('背包数量不足，不能确认已在背包中');}else if(choice!=='used')throw Error('请选择明确的处理方式');row.status=choice;}
+const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals','skillEventLog','letters','posts','comments','mailQuests','herd'];
 export function saveProgressBackup(s){return Object.fromEntries(backupKeys.map(k=>[k,copy(s[k]??null)]));}
 
 // Confirmed status only: rewards and materials are already accounted for elsewhere.
@@ -31,13 +33,21 @@ export function repairSavedMailQuestBaseline(s){
  const latest=s.turns.at(-1).state;const confirmed=(s.base?.quests||[]).filter(q=>(latest?.quests||[]).some(t=>t.name===q.name&&t.status===q.status&&t.mailQuestId===q.mailQuestId));
  return syncConfirmedMailQuestStatuses(s,confirmed);
 }
-export function applyConfirmedBaseline(s,state,rows){validatePatch(state);const saved=saveProgressBackup(s);syncConfirmedMailQuestStatuses(s,state.quests);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
-export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=copy(saved[key]);}}
+export function rememberInventoryRemovals(s,before,after){
+ const known=new Map((s.inventoryRemovals||[]).map(i=>[itemKey(i),i]));for(const item of before||[])if(item.count>0&&!(after||[]).some(i=>sameItem(i,item)&&i.count>0))known.set(itemKey(item),{...copy(item),count:0,floor:s.turns?.length||0});for(const item of after||[])if(item.count>0)known.delete(itemKey(item));s.inventoryRemovals=[...known.values()];
+}
+export function applyMaintenanceFields(s,patch,rows){
+ if(Object.keys(patch).some(k=>!['capacity','inventory'].includes(k)))throw Error('仅允许校正容量或背包');validatePatch(patch);if(patch.inventory)patch={...patch,inventory:patch.inventory.filter(i=>i.count>0)};const current=repairSnapshot(s);if(current.conflict&&patch.inventory)throw Error('请先核对冲突交易后再修改背包清单');const lastStory=rows.findLastIndex(r=>!r.message?.is_user&&!r.message?.is_system),start=lastStory<0?Math.max(0,s.turns.length-1):lastStory;if(s.turns.length&&start>=s.turns.length)throw Error('正文尚未同步完成，请同步后再保存校正');const backup=saveProgressBackup(s);if(patch.inventory)rememberInventoryRemovals(s,current.state.inventory,patch.inventory);if(patch.capacity!==undefined){const revision=s.turns.findLast(t=>t?.state)?.socialRevision??s.baseSocialRevision??0;for(const event of (s.socialEvents||[]).filter(e=>e.revision>revision&&e.capacity!==undefined)){(s.transactionResolutions??={})[event.id]={...(s.transactionResolutions?.[event.id]||{}),capacity:event.capacity,reason:'用户已手动校正背包格数'};}}
+ if(!s.turns.length){s.base=applyPatch(patch.inventory?current.state:s.base,patch);if(patch.inventory)s.baseSocialRevision=socialRevision(s);}else for(let i=start;i<s.turns.length;i++){if(!s.turns[i]?.state)continue;s.turns[i].state=applyPatch(patch.inventory?current.state:s.turns[i].state,patch);s.turns[i].playerCorrectionSnapshot=true;if(patch.inventory)s.turns[i].socialRevision=socialRevision(s);}
+ s.backup=backup;return applyPatch(current.state,patch);
+}
+export function applyConfirmedBaseline(s,state,rows){validatePatch(state);state={...copy(state),inventory:state.inventory.filter(i=>i.count>0)};const saved=saveProgressBackup(s);rememberInventoryRemovals(s,repairSnapshot(s).state.inventory,state.inventory);syncConfirmedMailQuestStatuses(s,state.quests);syncExpiredMailQuests(s,state.quests);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
+export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=copy(saved[key]);}}
 export function confirmConflictRepair(s,state,patch){
  const snap=repairSnapshot(s);if(!snap.conflict)return;
  if(!Object.hasOwn(patch,'inventory')||snap.pending.some(e=>e.gold)&&!Object.hasOwn(patch,'gold'))throw Error('交易冲突需要确认完整背包及涉及的金币字段，请选择背包或全部范围');
- validatePatch(state);s.transactionResolutions??={};for(const e of snap.pending){s.transactionResolutions[e.id]={...s.transactionResolutions[e.id],...(e.gold?{gold:e.gold}:{}),items:(e.items||[]).map(x=>({name:x.name,count:x.count})),reason:'用户核对绝对背包数量后确认'};
-  for(let i=0;i<(s.turns||[]).length;i++){const before=s.turns[i]?.before,previous=s.turns[i-1]?.state||s.base;if(!before?.socialEvents?.some(x=>x.id===e.id))continue;const count=(v,name)=>v.inventory.find(x=>x.name===name)?.count||0;if((e.items||[]).every(x=>count(previous,x.name)===count(state,x.name))&&(!e.gold||previous.gold===state.gold)){before.transactionResolutions={...before.transactionResolutions,[e.id]:copy(s.transactionResolutions[e.id])};}}
+ validatePatch(state);s.transactionResolutions??={};for(const e of snap.pending){s.transactionResolutions[e.id]={...s.transactionResolutions[e.id],...(e.gold?{gold:e.gold}:{}),items:(e.items||[]).map(x=>({name:x.name,count:x.count,...(x.quality!==undefined?{quality:x.quality}:{})})),reason:'用户核对绝对背包数量后确认'};
+  for(let i=0;i<(s.turns||[]).length;i++){const before=s.turns[i]?.before,previous=s.turns[i-1]?.state||s.base;if(!before?.socialEvents?.some(x=>x.id===e.id))continue;const count=(v,item)=>itemCount(v.inventory,item);if((e.items||[]).every(x=>count(previous,x)===count(state,x))&&(!e.gold||previous.gold===state.gold)){before.transactionResolutions={...before.transactionResolutions,[e.id]:copy(s.transactionResolutions[e.id])};}}
  }
 }
 const equal=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);

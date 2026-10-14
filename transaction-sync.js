@@ -1,7 +1,8 @@
+import {sameItem,itemKey,itemCount,normalizeQuality} from './item-quality.js';
 import {applySocialEvents} from './social.js';
-const count=(state,name)=>(state.inventory||[]).find(x=>x.name===name)?.count||0;
-export function transactionReceipt(state,items=[]){return {gold:state.gold,items:[...new Set(items.map(x=>x.name))].map(name=>({name,count:count(state,name)}))};}
-function matches(state,expected){return state&&state.gold===expected.gold&&expected.items.every(item=>count(state,item.name)===item.count)&&Object.entries(expected.skills||{}).every(([name,xp])=>(state.player?.skills?.[name]||0)===xp);}
+const count=(state,name,quality)=>itemCount(state.inventory,{name,quality});
+export function transactionReceipt(state,items=[]){return {gold:state.gold,items:[...new Map(items.map(x=>[itemKey(x),x])).values()].map(item=>({name:item.name,...(item.quality!==undefined?{quality:normalizeQuality(item.quality)}:{}),count:count(state,item.name,item.quality)}))};}
+function matches(state,expected){return state&&state.gold===expected.gold&&(expected.capacity===undefined||state.capacity===expected.capacity)&&expected.items.every(item=>count(state,item.name,item.quality)===item.count)&&Object.entries(expected.skills||{}).every(([name,xp])=>(state.player?.skills?.[name]||0)===xp);}
 
 // Legacy snapshots may contain only some transaction effects. Confirm each
 // effect separately so unrelated pending transactions cannot be skipped.
@@ -25,7 +26,7 @@ function repairLegacyEffects(s) {
  for(let g=0;g<starts.length;g++){
   const start=starts[g],end=starts[g+1]??turns.length,previous=turns[start-1];
   if(!previous?.state)continue;
-  const group=groups.get(start),eligible=group.filter(e=>turns[start].before.socialEvents.some(old=>old.id===e.id&&JSON.stringify([old.gold||0,old.items||[],old.skillsXp||{}])===JSON.stringify([e.gold||0,e.items||[],e.skillsXp||{}]))&&!e.after&&/^[\w:-]+$/.test(e.id)&&e.revision>(previous.socialRevision||0)&&!e.skillsXp&&
+  const group=groups.get(start),eligible=group.filter(e=>turns[start].before.socialEvents.some(old=>old.id===e.id&&JSON.stringify([old.gold||0,old.items||[],old.skillsXp||{}])===JSON.stringify([e.gold||0,e.items||[],e.skillsXp||{}]))&&!e.after&&!(e.items||[]).some(x=>normalizeQuality(x.quality)!=='普通')&&!previous.state.inventory.some(x=>normalizeQuality(x.quality)!=='普通')&&/^[\w:-]+$/.test(e.id)&&e.revision>(previous.socialRevision||0)&&!e.skillsXp&&
    (e.items||[]).every(x=>typeof x.name==='string'&&Number.isInteger(x.count)&&x.count!==0)&&
    (legacyTransfer(e,turns[start])||legacyCraft(e)));
   const fields=new Set(eligible.flatMap(e=>(e.items||[]).map(x=>x.name))),proofs=[];

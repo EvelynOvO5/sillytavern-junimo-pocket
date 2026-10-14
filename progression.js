@@ -1,3 +1,4 @@
+import {takeItems,sameItem} from './item-quality.js';
 import {blueprintFormatRule} from './blueprint-rules.js';
 export const skillNames=['耕种','采矿','采集','钓鱼','战斗'];
 export const skillThresholds=[0,100,380,770,1300,2150,3300,4800,6900,10000,15000];
@@ -28,8 +29,8 @@ export function letterAttachments(letter){
  return {body:body.join('\n').trim(),recipes,warnings};
 }
 export function letterRecipes(letter){return letter.read?letterAttachments(letter).recipes.map(r=>({...r,learned:true})):[];}
-export function craftTransaction(state,name,quantity){const r=(state.recipes||[]).find(r=>r.name===name);if(!r?.learned)throw Error('尚未学习这张图纸');if(!whole(quantity,99)||!quantity)throw Error('制作数量须为1到99');const items=r.materials.map(m=>{const owned=state.inventory.find(x=>x.name===m.name);if(!owned||owned.count<m.count*quantity)throw Error(m.name+'不足');return {...owned,count:-m.count*quantity};});const gold=(r.gold||0)*quantity;if(state.gold<gold)throw Error('金币不足');const product=state.inventory.find(x=>x.name===r.product)||{name:r.product,kind:'item',price:0,priceUnknown:true};items.push({...product,count:r.quantity*quantity});return {gold:-gold,items,description:'制作 '+r.product+' ×'+r.quantity*quantity+'（配方：'+r.name+'；已扣材料与费用）'};}
-export function projectTransaction(state,name){const r=(state.farmProjects||[]).find(r=>r.name===name);if(!r||r.status!=='推荐')throw Error('项目已开工或不存在');const items=r.materials.map(m=>{const owned=state.inventory.find(x=>x.name===m.name);if(!owned||owned.count<m.count)throw Error(m.name+'不足');return {...owned,count:-m.count};});if(state.gold<(r.gold||0))throw Error('金币不足');return {gold:-(r.gold||0),items,description:'开工 '+name+'，工期 '+r.days+' 天，'+r.description+'（材料与金币已扣，正文按工期推进，不能再次扣费）'};}
+export function craftTransaction(state,name,quantity){const r=(state.recipes||[]).find(r=>r.name===name);if(!r?.learned)throw Error('尚未学习这张图纸');if(!whole(quantity,99)||!quantity)throw Error('制作数量须为1到99');const items=r.materials.flatMap(m=>takeItems(state.inventory,m.name,m.count*quantity));const gold=(r.gold||0)*quantity;if(state.gold<gold)throw Error('金币不足');const product=state.inventory.find(x=>sameItem(x,{name:r.product}))||{name:r.product,kind:'item',price:0,priceUnknown:true};items.push({...product,count:r.quantity*quantity});return {gold:-gold,items,description:'制作 '+r.product+' ×'+r.quantity*quantity+'（配方：'+r.name+'；已扣材料与费用）'};}
+export function projectTransaction(state,name){const r=(state.farmProjects||[]).find(r=>r.name===name);if(!r||r.status!=='推荐')throw Error('项目已开工或不存在');const items=r.materials.flatMap(m=>takeItems(state.inventory,m.name,m.count));if(state.gold<(r.gold||0))throw Error('金币不足');return {gold:-(r.gold||0),items,description:'开工 '+name+'，工期 '+r.days+' 天，'+r.description+'（材料与金币已扣，正文按工期推进，不能再次扣费）'};}
 export const progressionInstruction=`【制作、工程与成长同步】
 只有已明确获得并学会的图纸才写已学习；食谱、家具、工业图纸可由来信、角色传授、购买或探索获得，允许原创。材料、产物、数量、费用必须明确，不明则先在故事里确认，不能猜配方。学会不等于制作，不增成品、不扣材料。所有栏目写在手机状态块内：
 图纸：名称|工业或食物或家具|产物|单批数量|材料名×数量、材料名×数量（没有写无）|金币费用|已学习或未学习|来源|说明

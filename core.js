@@ -1,3 +1,5 @@
+import {validatePackageContents} from './item-packages.js';
+import {normalizeQuality} from './item-quality.js';
 import {transactionEffectsFor} from './transaction-effects.js';
 import {mergeQuests} from './quest-state.js';
 import {sha256} from './browser-compat.js';
@@ -18,6 +20,7 @@ export function validatePatch(patch) {
   if ('capacity' in patch && (!Number.isInteger(patch.capacity)||!number(patch.capacity,1000))) throw Error('背包容量无效');
   if ('calendar' in patch && (!plain(patch.calendar)||Object.entries(patch.calendar).some(([k,v])=>!['season','day','year','time','weather','weekday'].includes(k)|| !(text(v,40)||number(v,9999))))) throw Error('日历无效');
   for (const key of ['inventory','plots','quests','animals']) if (key in patch && (!Array.isArray(patch[key])||patch[key].length>500)) throw Error(key+' 数量无效');
+  for(const item of patch.inventory||[]){normalizeQuality(item.quality);if(item.contents!==undefined)validatePackageContents(item.contents,item);}
   if (patch.inventory?.some(x=>!plain(x)||!name(x.name)||!x.name||!Number.isInteger(x.count)||!number(x.count,1000000)||!number(x.price??0)||!['item','seed','fertilizer'].includes(x.kind??'item')||!number(x.days??0,9999))) throw Error('背包物品无效');
   if (patch.plots?.some(x=>!plain(x)||!name(x.crop)||typeof x.wet!=='boolean'||!(x.days===null||number(x.days,9999))||!name(x.fertilizer??''))) throw Error('农田数据无效');
   if('buildings' in patch&&(!Array.isArray(patch.buildings)||patch.buildings.length>100))throw Error('建筑数据无效');
