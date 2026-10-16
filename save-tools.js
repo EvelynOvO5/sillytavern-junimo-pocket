@@ -1,3 +1,4 @@
+import {isLetterDeleted,isLetterArchived} from './mail-records.js';
 import {syncExpiredMailQuests} from './quest-state.js';
 import {sameItem,itemCount,itemKey} from './item-quality.js';
 import {world,validatePatch,applyPatch} from './core.js';
@@ -66,8 +67,8 @@ export function prepareFullImport(current,source,rows,roles=[]){
  const common=Math.min(source.turns.length,incoming.turns.length),matched=i=>source.turns[i]?.signature===incoming.turns[i]?.signature;
  for(const key of ['letters','posts','comments']){
   const seen=new Set([...(incoming[key]||[]),...incoming.turns.flatMap(t=>t[key]||[])].map(x=>x.id));
-  const deleted=new Set(key==='posts'?incoming.deletedPostIds||[]:key==='comments'?incoming.deletedCommentIds||[]:[]);
-  const add=(record,floor)=>{if(!record?.id||seen.has(record.id)||deleted.has(record.id)||key==='comments'&&(incoming.deletedPostIds||[]).includes(record.postId))return;seen.add(record.id);(incoming[key]??=[]).push(copy(record));report.records++;for(let j=floor+1;j<incoming.turns.length;j++)if(incoming.turns[j].before){const list=incoming.turns[j].before[key]??=[];if(!list.some(x=>x.id===record.id))list.push(copy(record));}};
+  const deleted=new Set(key==='letters'?incoming.deletedLetterIds||[]:key==='posts'?incoming.deletedPostIds||[]:key==='comments'?incoming.deletedCommentIds||[]:[]);
+  const add=(record,floor)=>{if(!record?.id||seen.has(record.id)||deleted.has(record.id)||key==='letters'&&isLetterDeleted(incoming,record)||key==='comments'&&(incoming.deletedPostIds||[]).includes(record.postId))return;seen.add(record.id);(incoming[key]??=[]).push(key==='letters'?{...copy(record),archived:isLetterArchived(source,record)}:copy(record));report.records++;for(let j=floor+1;j<incoming.turns.length;j++)if(incoming.turns[j].before){const list=incoming.turns[j].before[key]??=[];if(!list.some(x=>x.id===record.id))list.push(copy(record));}};
   for(let i=0;i<common;i++)if(matched(i))for(const record of source.turns[i][key]||[])add(record,i);
   if(matched(source.turns.length-1))for(const record of source[key]||[])add(record,source.turns.length-1);
  }

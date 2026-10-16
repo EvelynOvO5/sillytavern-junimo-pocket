@@ -1,3 +1,4 @@
+import {isLetterDeleted} from './mail-records.js';
 import {visibleMessages} from './phone-records.js';
 import {checkpoint} from './round-sync.js';
 
@@ -30,7 +31,7 @@ export function restoreDeletedStoryRecords(s){
     const existing=field==='messages'?visibleMessages(destination):[...(destination[target]||[]),...(destination.turns||[]).flatMap(t=>t?.[field]||[])];
     const seen=new Set(existing.map(x=>x.id));
     for(const record of records){
-     if(!record.id||seen.has(record.id)||(s.deletedMessageIds||[]).includes(record.id)||(s.deletedPostIds||[]).includes(record.id)||(s.deletedCommentIds||[]).includes(record.id)||(field==='comments'&&(s.deletedPostIds||[]).includes(record.postId)))continue;
+     if(!record.id||seen.has(record.id)||field==='letters'&&isLetterDeleted(s,record)||(s.deletedMessageIds||[]).includes(record.id)||(s.deletedPostIds||[]).includes(record.id)||(s.deletedCommentIds||[]).includes(record.id)||(field==='comments'&&(s.deletedPostIds||[]).includes(record.postId)))continue;
      (destination[target]??=[]).push(structuredClone(record));seen.add(record.id);if(destination===s)restored++;
     }
    };
