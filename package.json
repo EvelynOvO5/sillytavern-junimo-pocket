@@ -1,10 +1,10 @@
 {
   "name": "sillytavern-junimo-pocket",
-  "version": "0.20.13",
+  "version": "0.20.14",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js community.test.js app-prompts.test.js phone-records.test.js features-014.test.js features-015.test.js features-0151.test.js animals.test.js features-017.test.js features-0172.test.js birthdays.test.js user-presets.test.js sync-mobile.test.js browser-compat.test.js extension-switch.test.js avatar-crop.test.js group-social.test.js customization.test.js build-runtime.test.js blueprint-format.test.js round-settlement.test.js task-batch.test.js floating-position.test.js quest-state.test.js list-state.test.js skill-accounting.test.js farm-name.test.js turn-recovery.test.js version-panel.test.js transaction-sync.test.js story-structure.test.js player-repair.test.js save-tools.test.js sprinklers.test.js item-quality.test.js item-packages.test.js bag-capacity.test.js lucky-packets.test.js sticker-batch.test.js mail-records.test.js",
+    "test": "node --test core.test.js lore.test.js protocol.test.js text-state.test.js phone-memory.test.js social.test.js json-response.test.js community.test.js app-prompts.test.js phone-records.test.js features-014.test.js features-015.test.js features-0151.test.js animals.test.js features-017.test.js features-0172.test.js birthdays.test.js user-presets.test.js sync-mobile.test.js browser-compat.test.js extension-switch.test.js avatar-crop.test.js group-social.test.js customization.test.js build-runtime.test.js blueprint-format.test.js round-settlement.test.js task-batch.test.js floating-position.test.js quest-state.test.js list-state.test.js skill-accounting.test.js farm-name.test.js turn-recovery.test.js version-panel.test.js transaction-sync.test.js story-structure.test.js player-repair.test.js save-tools.test.js sprinklers.test.js item-quality.test.js item-packages.test.js bag-capacity.test.js lucky-packets.test.js sticker-batch.test.js mail-records.test.js animal-calendar.test.js",
     "build": "node build.mjs"
   }
 }

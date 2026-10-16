@@ -29,7 +29,7 @@ export function syncAnimals(s,state){const clock=farmClock(state.calendar);if(!c
  for(const row of state.animals||[]){if(h.animals.some(a=>a.id===row.id||a.name===row.name))continue;const species=speciesOf(row);if(species==='custom'){h.animals.push({id:'legacy-'+h.animals.length+'-'+clock.day,name:row.name,species,registered:false,status:row.status||''});continue;}const a=newAnimal({name:row.name,species,adult:/成年/.test(row.status||'')},clock,'story-'+clock.day+'-'+h.animals.length);a.fed=/已喂|吃饱|已吃/.test(row.status||'')||a.arrival===clock.day;h.animals.push(a);}
  return before!==JSON.stringify(h);}
 export function animalView(s){return (s.herd?.animals||[]).map(a=>a.registered?{...a,status:(a.age<a.grow?'幼崽 · 成长 '+a.age+'/'+a.grow+' 天':'成年')+' · '+(a.fed?'已喂食':'待喂食')+' · 友谊 '+Math.round(a.friendship)+'/1000 · 心情 '+Math.round(a.mood)+'/255'}:{...a,status:'待登记种类与产物'});}
-export function animalMemory(s){if(!s.herd)return '';return '\n【牧场实况·已结算】\n'+JSON.stringify({date:s.herd.day,animals:animalView(s).map(({name,species,product,age,grow,friendship,mood,fed,pet,outside,ready,status})=>({name,species,product,age,grow,friendship,mood,fed,pet,outside,ready,status})),rule:'此记录是手机已执行的养殖操作。正文据此演绎，不再重复扣饲料、重复增加友谊或发放产物。未收集的ready仍在牧场，只有收集才进入背包；幼崽不生产。改写动物名称不会自动认作同一只；不得凭空改名、删除或增加动物。年龄按吃饱后的过夜推进，不按回复次数。'});}
+export function animalMemory(s){if(!s.herd)return '';return '\n【牧场实况·已结算】\n'+JSON.stringify({settledThrough:{year:Math.floor(s.herd.day/112)+1,season:['春季','夏季','秋季','冬季'][Math.floor((s.herd.day%112)/28)],day:s.herd.day%28+1},animals:animalView(s).map(({name,species,product,age,grow,friendship,mood,fed,pet,outside,ready,status})=>({name,species,product,age,grow,friendship,mood,fed,pet,outside,ready,status})),rule:'结算日期仅用于照料去重，世界日期以当前状态基线为准。此记录是手机已执行的养殖操作。正文据此演绎，不再重复扣饲料、重复增加友谊或发放产物。未收集的ready仍在牧场，只有收集才进入背包；幼崽不生产。改写动物名称不会自动认作同一只；不得凭空改名、删除或增加动物。年龄按吃饱后的过夜推进，不按回复次数。'});}
 // Returns a complete replacement and transaction for the caller to commit atomically.
 export function animalAction(s,state,action,id,input={}){const copy=cp(s);syncAnimals(copy,state);const h=copy.herd,clock=farmClock(state.calendar);if(!h||!clock)throw Error('请先同步正文日期');if(clock.day<h.day)throw Error('正文日期倒退，请恢复对应楼层或修正日期后再照料');let a=h.animals.find(x=>x.id===id),items=[],description='';
  if(action==='add'||action==='register'){if(h.animals.length>=100&&action==='add')throw Error('最多登记100只动物');const added=newAnimal(input,clock,action==='register'?id:input.id);if(h.animals.some(x=>x.name===added.name&&x.id!==id))throw Error('动物名字已使用，请给它起一个独立名字');if(action==='register'){if(!a||a.registered)throw Error('这只动物已经登记');Object.assign(a,added);}else h.animals.push(added);description='登记动物：'+added.name+'，'+(added.age<added.grow?'幼崽':'成年')+'，产物'+added.product;}
@@ -42,3 +42,28 @@ export function animalAction(s,state,action,id,input={}){const copy=cp(s);syncAn
  else throw Error('未知的牧场操作');}
  if(a?.method==='forage'&&a.outside&&clock.minute<1080&&['grass','outside'].includes(action)){const morning={...a,fed:!!a.productionFed,mood:a.productionMood??a.mood,friendship:a.productionFriendship??a.friendship};const count=a.ready.length;produce(morning,h,clock.day,clock);if(a.ready.length>count)a.lastProduct=clock.day;a.lastAttempt=morning.lastAttempt;}
  return {herd:h,items,description};}
+// Manual calendar confirmation rebases settlement time; it does not simulate elapsed days.
+export function rebaseAnimalCalendar(s,state){
+ const h=s.herd,clock=farmClock(state.calendar);if(!h||!clock)return false;
+ const before=JSON.stringify(h),oldDay=h.day;
+ for(const a of h.animals||[]){if(!a.registered)continue;const matches=(state.animals||[]).filter(row=>row.id?row.id===a.id:row.name===a.name);if(matches.length!==1)continue;const row=matches[0],text=String(row.status||''),generated=animalView({herd:{animals:[a]}})[0]?.status;
+  // Ignore the phone's own generated status unless the user explicitly changed it.
+  if(text===generated)continue;
+  if(/(?:^|[ ·，,；;])(?:已)?成年(?:$|[ ·，,；;])/.test(text))a.age=a.grow;
+  const age=text.match(/(?:成长|幼崽\s*[·:：]?)\s*(\d+)\s*\/\s*(\d+)\s*天/);if(age&&Number(age[2])===a.grow&&integer(Number(age[1]),0,a.grow))a.age=Number(age[1]);
+  const friendship=text.match(/友谊\s*[：:]?\s*(\d+)\s*\/\s*1000/),mood=text.match(/心情\s*[：:]?\s*(\d+)\s*\/\s*255/);
+  if(friendship&&integer(Number(friendship[1]),0,1000))a.friendship=Number(friendship[1]);if(mood&&integer(Number(mood[1]),0,255))a.mood=Number(mood[1]);
+  if(/未喂食|未喂|未吃饱|没吃饱|未进食|待喂食/.test(text))a.fed=false;else if(/(?:今日|今天)?已喂(?:食)?|吃饱|已吃/.test(text))a.fed=true;
+  if(/未抚摸/.test(text))a.pet=false;else if(/(?:今日|今天)?已抚摸/.test(text)){a.pet=true;a.everPet=true;}
+ }
+ if(oldDay!==clock.day){
+  // Preserve identities, acquisition dates, age, care flags and already generated products.
+  // Future settlement markers are clamped so production cannot replay on the corrected day.
+  for(const a of h.animals||[]){for(const key of ['lastProduct','lastAttempt'])if(Number.isInteger(a[key])&&a[key]>clock.day)a[key]=clock.day;}
+  h.day=clock.day;h.minute=clock.minute;
+ }else h.minute=Math.max(h.minute??clock.minute,clock.minute);
+ h.env={...clock,minute:h.minute};
+ if(before===JSON.stringify(h))return false;
+ s.animalCalendarCorrection={fromDay:oldDay,toDay:clock.day,policy:'confirmed-rebase-no-replay'};
+ return true;
+}

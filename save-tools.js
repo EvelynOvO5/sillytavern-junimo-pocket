@@ -1,3 +1,4 @@
+import {rebaseAnimalCalendar} from './animals.js';
 import {isLetterDeleted,isLetterArchived} from './mail-records.js';
 import {syncExpiredMailQuests} from './quest-state.js';
 import {sameItem,itemCount,itemKey} from './item-quality.js';
@@ -18,7 +19,7 @@ export function quarantineCraftConflict(s,id){
  return true;
 }
 export function resolvePendingItem(s,id,choice){const row=s.pendingItemResolutions?.find(x=>x.id===id&&x.status==='pending');if(!row)throw Error('该成品已核对或不存在');const state=world(s),owned=itemCount(state.inventory,row);if(choice==='return'){if(owned)throw Error('背包已有该物品，请核对后选择“已经在背包中”');appendTransaction(s,state,{id:'resolve-'+row.id,items:[{name:row.name,count:row.count,...(row.quality!==undefined?{quality:row.quality}:{}),kind:'item',price:0,priceUnknown:true}],description:'用户确认找回旧制作成品 '+row.name});}else if(choice==='present'){if(owned<row.count)throw Error('背包数量不足，不能确认已在背包中');}else if(choice!=='used')throw Error('请选择明确的处理方式');row.status=choice;}
-const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals','skillEventLog','letters','posts','comments','mailQuests','herd'];
+const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals','skillEventLog','letters','posts','comments','mailQuests','herd','animalCalendarCorrection'];
 export function saveProgressBackup(s){return Object.fromEntries(backupKeys.map(k=>[k,copy(s[k]??null)]));}
 
 // Confirmed status only: rewards and materials are already accounted for elsewhere.
@@ -42,7 +43,7 @@ export function applyMaintenanceFields(s,patch,rows){
  if(!s.turns.length){s.base=applyPatch(patch.inventory?current.state:s.base,patch);if(patch.inventory)s.baseSocialRevision=socialRevision(s);}else for(let i=start;i<s.turns.length;i++){if(!s.turns[i]?.state)continue;s.turns[i].state=applyPatch(patch.inventory?current.state:s.turns[i].state,patch);s.turns[i].playerCorrectionSnapshot=true;if(patch.inventory)s.turns[i].socialRevision=socialRevision(s);}
  s.backup=backup;return applyPatch(current.state,patch);
 }
-export function applyConfirmedBaseline(s,state,rows){validatePatch(state);state={...copy(state),inventory:state.inventory.filter(i=>i.count>0)};const saved=saveProgressBackup(s);rememberInventoryRemovals(s,repairSnapshot(s).state.inventory,state.inventory);syncConfirmedMailQuestStatuses(s,state.quests);syncExpiredMailQuests(s,state.quests);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
+export function applyConfirmedBaseline(s,state,rows){validatePatch(state);state={...copy(state),inventory:state.inventory.filter(i=>i.count>0)};const saved=saveProgressBackup(s);rememberInventoryRemovals(s,repairSnapshot(s).state.inventory,state.inventory);syncConfirmedMailQuestStatuses(s,state.quests);syncExpiredMailQuests(s,state.quests);rebaseAnimalCalendar(s,state);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,...(s.turns?.[i]?.before&&s.herd?{before:{...s.turns[i].before,herd:copy(s.herd),animalCalendarCorrection:copy(s.animalCalendarCorrection??null)}}:{}),state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
 export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=copy(saved[key]);}}
 export function confirmConflictRepair(s,state,patch){
  const snap=repairSnapshot(s);if(!snap.conflict)return;
