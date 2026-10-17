@@ -11,6 +11,7 @@ const same=(turn,row)=>!!turn&&(turn.storyId&&row.storyId?turn.storyId===row.sto
 function moveProgress(progress,move){
  for(const event of progress.skillEventLog||[])if(Number.isInteger(event.floor))event.floor=move(event.floor);
  for(const event of progress.socialEvents||[])if(Number.isInteger(event.floor))event.floor=move(event.floor);
+ for(const row of [...(progress.storage?.guards||[]),...(progress.storage?.conflicts||[])])if(Number.isInteger(row.floor))row.floor=move(row.floor);
  for(const key of ['chatRound','mailRound'])if(Number.isInteger(progress[key]?.floor))progress[key].floor=move(progress[key].floor);
 }
 
