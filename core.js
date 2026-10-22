@@ -6,7 +6,7 @@ import {transactionEffectsFor} from './transaction-effects.js';
 import {mergeQuests} from './quest-state.js';
 import {sha256} from './browser-compat.js';
 import {validateProgress,mergeProgress,letterRecipes} from './progression.js';
-import {animalView} from './animals.js';
+import {animalView,animalMatches} from './animals.js';
 import {applySocialEvents,managedQuests,allLetters} from './social.js';
 export const clone = value => Array.isArray(value?.turns)?compactClone(value):structuredClone(value);
 const plain = x => x && typeof x === 'object' && !Array.isArray(x);
@@ -57,7 +57,7 @@ export function reconcile(store, signatures) {
   if(keep<store.turns.length)store.turns.splice(keep);
   return keep;
 }
-export function world(store) {const turn=(store.turns||[]).findLast(t=>t?.state),state=applySocialEvents(turn?.state??store.base,store.socialEvents||[],turn?.socialRevision??store.baseSocialRevision??0,transactionEffectsFor(store,turn));if(store.mailQuests?.length){const managed=managedQuests(store);state.quests=[...(state.quests||[]).filter(q=>!q.mailQuestId&&!store.mailQuests.some(m=>m.subject===q.name)),...managed];}if(store.herd){const rows=animalView(store);state.animals=[...rows,...(state.animals||[]).filter(a=>!rows.some(r=>r.name===a.name))];}const learned=allLetters(store).flatMap(letterRecipes);if(learned.length)state.recipes=mergeProgress('recipes',learned,state.recipes||[]);return applyDressingState(state,store.storage);}
+export function world(store) {const turn=(store.turns||[]).findLast(t=>t?.state),state=applySocialEvents(turn?.state??store.base,store.socialEvents||[],turn?.socialRevision??store.baseSocialRevision??0,transactionEffectsFor(store,turn));if(store.mailQuests?.length){const managed=managedQuests(store);state.quests=[...(state.quests||[]).filter(q=>!q.mailQuestId&&!store.mailQuests.some(m=>m.subject===q.name)),...managed];}if(store.herd){const rows=animalView(store);state.animals=[...rows,...(state.animals||[]).filter(a=>!rows.some(r=>animalMatches(r,a)))];}const learned=allLetters(store).flatMap(letterRecipes);if(learned.length)state.recipes=mergeProgress('recipes',learned,state.recipes||[]);return applyDressingState(state,store.storage);}
 export function migrateDemo(store,empty){
   if(store.version>=2)return false;
   const demo=store.base?.gold===12580&&store.base?.inventory?.some(x=>x.name==='防风草种子'&&x.count===12);
