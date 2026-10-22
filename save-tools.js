@@ -1,3 +1,5 @@
+import {withoutCandidateMetadata,noteCandidateRestore} from './candidate-progress.js';
+import {compactClone,unpackSave,isPackedSave,withCheckpointFields} from './save-compaction.js';
 import {adoptDressingOutfit} from './wardrobe.js';
 import {dressingOutfit,applyDressingState} from './clothing-equipment.js';
 import {validateStorage,rebaseStorageBaseline} from './storage-chests.js';
@@ -23,7 +25,7 @@ export function quarantineCraftConflict(s,id){
 }
 export function resolvePendingItem(s,id,choice){const row=s.pendingItemResolutions?.find(x=>x.id===id&&x.status==='pending');if(!row)throw Error('该成品已核对或不存在');const state=world(s),owned=itemCount(state.inventory,row);if(choice==='return'){if(owned)throw Error('背包已有该物品，请核对后选择“已经在背包中”');appendTransaction(s,state,{id:'resolve-'+row.id,items:[{name:row.name,count:row.count,...(row.quality!==undefined?{quality:row.quality}:{}),kind:'item',price:0,priceUnknown:true}],description:'用户确认找回旧制作成品 '+row.name});}else if(choice==='present'){if(owned<row.count)throw Error('背包数量不足，不能确认已在背包中');}else if(choice!=='used')throw Error('请选择明确的处理方式');row.status=choice;}
 const backupKeys=['base','baseSocialRevision','turns','manual','draft','socialEvents','transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals','skillEventLog','letters','posts','comments','mailQuests','herd','animalCalendarCorrection','storage'];
-export function saveProgressBackup(s){return Object.fromEntries(backupKeys.map(k=>[k,copy(s[k]??null)]));}
+export function saveProgressBackup(s){return compactClone(withoutCandidateMetadata(Object.fromEntries(backupKeys.map(k=>[k,s[k]??null]))));}
 
 // Confirmed status only: rewards and materials are already accounted for elsewhere.
 export function syncConfirmedMailQuestStatuses(s,quests=[]){
@@ -46,8 +48,8 @@ export function applyMaintenanceFields(s,patch,rows){
  if(!s.turns.length){s.base=applyPatch(patch.inventory?current.state:s.base,patch);if(patch.inventory)s.baseSocialRevision=socialRevision(s);}else for(let i=start;i<s.turns.length;i++){if(!s.turns[i]?.state)continue;s.turns[i].state=applyPatch(patch.inventory?current.state:s.turns[i].state,patch);s.turns[i].playerCorrectionSnapshot=true;if(patch.inventory)s.turns[i].socialRevision=socialRevision(s);}
  s.backup=backup;return applyPatch(current.state,patch);
 }
-export function applyConfirmedBaseline(s,state,rows){validatePatch(state);state={...copy(state),inventory:state.inventory.filter(i=>i.count>0)};const saved=saveProgressBackup(s);if(s.storage?.dressing&&state.player?.outfit!==undefined&&state.player.outfit!==dressingOutfit(s.storage.dressing)){s.storage=adoptDressingOutfit(s,state,state.player.outfit);state=applyDressingState(state,s.storage);}rememberInventoryRemovals(s,repairSnapshot(s).state.inventory,state.inventory);syncConfirmedMailQuestStatuses(s,state.quests);syncExpiredMailQuests(s,state.quests);rebaseAnimalCalendar(s,state);rebaseStorageBaseline(s);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,...(s.turns?.[i]?.before&&(s.herd||s.storage)?{before:{...s.turns[i].before,herd:copy(s.herd??null),animalCalendarCorrection:copy(s.animalCalendarCorrection??null),...(s.storage?{storage:copy(s.storage),socialEvents:copy(s.socialEvents||[])}:{})}}:{}),state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
-export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=copy(saved[key]);}}
+export function applyConfirmedBaseline(s,state,rows){validatePatch(state);state={...copy(state),inventory:state.inventory.filter(i=>i.count>0)};const saved=saveProgressBackup(s);if(s.storage?.dressing&&state.player?.outfit!==undefined&&state.player.outfit!==dressingOutfit(s.storage.dressing)){s.storage=adoptDressingOutfit(s,state,state.player.outfit);state=applyDressingState(state,s.storage);}rememberInventoryRemovals(s,repairSnapshot(s).state.inventory,state.inventory);syncConfirmedMailQuestStatuses(s,state.quests);syncExpiredMailQuests(s,state.quests);rebaseAnimalCalendar(s,state);rebaseStorageBaseline(s);s.base=copy(state);s.baseSocialRevision=socialRevision(s);s.turns=rows.map((r,i)=>({...s.turns?.[i],signature:r.signature,storyId:r.storyId,...(s.turns?.[i]?.before&&(s.herd||s.storage)?{before:withCheckpointFields(s.turns[i].before,{herd:copy(s.herd??null),animalCalendarCorrection:copy(s.animalCalendarCorrection??null),...(s.storage?{storage:copy(s.storage),socialEvents:copy(s.socialEvents||[])}:{})})}:{}),state:copy(state),socialRevision:socialRevision(s),messages:copy(s.turns?.[i]?.messages||[]),playerCorrectionSnapshot:true}));s.draft=null;s.backup=saved;}
+export function restoreProgressBackup(s){if(!s.backup)throw Error('没有备份');const saved=s.backup;delete s.backup;for(const key of backupKeys){if(!(key in saved)){if(['transactionResolutions','pendingItemResolutions','sprinklers','inventoryRemovals'].includes(key))delete s[key];continue;}if(saved[key]==null)delete s[key];else s[key]=key==='turns'?compactClone({turns:saved[key]}).turns:copy(saved[key]);}noteCandidateRestore(s);}
 export function confirmConflictRepair(s,state,patch){
  const snap=repairSnapshot(s);if(!snap.conflict)return;
  if(!Object.hasOwn(patch,'inventory')||snap.pending.some(e=>e.gold)&&!Object.hasOwn(patch,'gold'))throw Error('交易冲突需要确认完整背包及涉及的金币字段，请选择背包或全部范围');
@@ -64,9 +66,10 @@ export function markImportRepairs(original,repaired){
  repaired.repairAudit={...repaired.repairAudit,changes};return repaired;
 }
 export function prepareFullImport(current,source,rows,roles=[]){
+ const compactSource=isPackedSave(source);source=unpackSave(source);
  if(source?.version!==3||!Array.isArray(source.turns)||!Array.isArray(source.manual))throw Error('不是完整手机存档');
- if(/"(?:__proto__|constructor|prototype)"\s*:/.test(JSON.stringify(source)))throw Error('无效存档属性');
- const incoming=copy(current),candidates=recoveryCandidates(incoming,source,roles);applyRecoveredMessages(incoming,candidates);
+ if(!compactSource&&/"(?:__proto__|constructor|prototype)"\s*:/.test(JSON.stringify(source)))throw Error('无效存档属性');
+ const incoming=compactClone(current),candidates=recoveryCandidates(incoming,source,roles);applyRecoveredMessages(incoming,candidates);
  const report={messages:candidates.length,records:0,repairs:0,skipped:0};
  const common=Math.min(source.turns.length,incoming.turns.length),matched=i=>source.turns[i]?.signature===incoming.turns[i]?.signature;
  for(const key of ['letters','posts','comments']){

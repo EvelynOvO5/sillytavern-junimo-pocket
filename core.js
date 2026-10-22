@@ -1,3 +1,4 @@
+import {compactClone} from './save-compaction.js';
 import {applyDressingState} from './clothing-equipment.js';
 import {validatePackageContents} from './item-packages.js';
 import {normalizeQuality} from './item-quality.js';
@@ -7,7 +8,7 @@ import {sha256} from './browser-compat.js';
 import {validateProgress,mergeProgress,letterRecipes} from './progression.js';
 import {animalView} from './animals.js';
 import {applySocialEvents,managedQuests,allLetters} from './social.js';
-export const clone = value => structuredClone(value);
+export const clone = value => Array.isArray(value?.turns)?compactClone(value):structuredClone(value);
 const plain = x => x && typeof x === 'object' && !Array.isArray(x);
 const text = (x, max=200) => typeof x === 'string' && x.length <= max && !/[<>]/.test(x);
 const name = x => text(x,80) && !/["'`\\]/.test(x);

@@ -1,3 +1,4 @@
+import {compactClone} from './save-compaction.js';
 import {isLetterDeleted} from './mail-records.js';
 import {visibleMessages} from './phone-records.js';
 import {checkpoint} from './round-sync.js';
@@ -54,9 +55,9 @@ export function alignStoryStructure(s,rows){
  const middle=mapping.length>0&&mapping.at(-1)===original.length-1&&removed.length>0;
  let deleted=0,hidden=0;
  if(middle){
-  s.structureBackup={reason:'middle-deletion',removed,turns:structuredClone(original),progress:checkpoint(s),base:structuredClone(s.base),baseSocialRevision:s.baseSocialRevision||0};
+  s.structureBackup={reason:'middle-deletion',removed,turns:compactClone({turns:original}).turns,progress:checkpoint(s),base:structuredClone(s.base),baseSocialRevision:s.baseSocialRevision||0};
   const move=index=>index-removed.filter(i=>i<index).length;
-  s.turns=mapping.map((i,index)=>({...structuredClone(original[i]),...(i!==index?{structuralSnapshot:true}:{})}));deleted=removed.length;
+  s.turns=compactClone({turns:mapping.map((i,index)=>({...original[i],...(i!==index?{structuralSnapshot:true}:{})}))}).turns;deleted=removed.length;
   moveProgress(s,move);
   for(const turn of s.turns)if(turn.before)moveProgress(turn.before,move);
   for(const key of ['pendingNarrativeFloor','skillAccountingStartFloor'])if(Number.isInteger(s[key]))s[key]=move(s[key]);
