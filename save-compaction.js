@@ -1,5 +1,6 @@
 // Lossless JSON graph storage with independent, lazily decoded rollback fields.
 const FORMAT='junimo-pocket-compact',lazy=new WeakMap();
+const lazyContainers=new Set(['before','$root','$turn','backup','recordBackup','structureBackup','legacyBackup','demoBackup','turnGapBackup','importBackup']);
 const forbidden=new Set(['__proto__','constructor','prototype']);
 const writers=new WeakMap(),patchWriters=new WeakMap();
 function writer(){return {nodes:[],seen:new Map(),imports:new Map(),stack:new WeakSet()};}
@@ -15,8 +16,8 @@ export function unpackSave(data,{lazySnapshots=true,trusted=false}={}){
  const pool=data.nodes;
  if(data.version!==3||data.codecVersion!==1||!Array.isArray(pool)||pool.length>2000000||!Number.isInteger(data.root)||data.root<0||data.root>=pool.length)throw Error('压缩手机存档格式无效');
  if(!trusted)for(let id=0;id<pool.length;id++){const n=pool[id];if(n===null||['string','number','boolean'].includes(typeof n))continue;if(!Array.isArray(n)||n.length!==2||![0,1].includes(n[0])||!Array.isArray(n[1]))throw Error('压缩手机存档节点无效');const keys=new Set();for(const row of n[1]){const ref=n[0]===0?row:row?.[1];if(n[0]===1&&(!Array.isArray(row)||row.length!==2||typeof row[0]!=='string'||forbidden.has(row[0])||keys.has(row[0])))throw Error('无效存档属性');if(n[0]===1)keys.add(row[0]);if(!Number.isInteger(ref)||ref<0||ref>=id)throw Error('压缩手机存档引用无效');}}
- function decode(id,key='',depth=0,budget={left:2000000}){if(--budget.left<0)throw Error('手机存档展开过大');if(depth>150)throw Error('手机存档嵌套过深');const n=pool[id];if(!Array.isArray(n))return n;if(n[0]===0)return n[1].map(i=>decode(i,'',depth+1,budget));const out={};if(lazySnapshots&&key==='before'){const meta={pool,refs:new Map(n[1]),loaded:new Map()};lazy.set(out,meta);for(const [k,i]of n[1])Object.defineProperty(out,k,{enumerable:true,configurable:true,get(){if(!meta.loaded.has(k))meta.loaded.set(k,decode(i,k,depth+1));return meta.loaded.get(k);},set(v){meta.loaded.set(k,v);}});}else for(const [k,i]of n[1])out[k]=decode(i,k,depth+1,budget);return out;}
- const result=decode(data.root);if(!result||typeof result!=='object'||Array.isArray(result))throw Error('手机存档根节点无效');return result;
+ function decode(id,key='',depth=0,budget={left:2000000}){if(--budget.left<0)throw Error('手机存档展开过大');if(depth>150)throw Error('手机存档嵌套过深');const n=pool[id];if(!Array.isArray(n))return n;if(n[0]===0)return n[1].map(i=>decode(i,key==='turns'?'$turn':'',depth+1,budget));const out={};if(lazySnapshots&&lazyContainers.has(key)){const meta={pool,refs:new Map(n[1]),loaded:new Map()};lazy.set(out,meta);for(const [k,i]of n[1])Object.defineProperty(out,k,{enumerable:true,configurable:true,get(){if(!meta.loaded.has(k))meta.loaded.set(k,decode(i,k,depth+1));return meta.loaded.get(k);},set(v){meta.loaded.set(k,v);}});}else for(const [k,i]of n[1])out[k]=decode(i,k,depth+1,budget);return out;}
+ const result=decode(data.root,'$root');if(!result||typeof result!=='object'||Array.isArray(result))throw Error('手机存档根节点无效');return result;
 }
 export function snapshotFieldLoaded(snapshot,key){return lazy.get(snapshot)?.loaded.has(key)??true;}
 
