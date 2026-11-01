@@ -1,3 +1,4 @@
+import {makeTheatreArchive} from './theatre-social.js';
 import {saveCssPreset} from './customization.js';
 import {world,validatePatch} from './core.js';
 import {packSave,unpackSave,compactClone} from './save-compaction.js';
@@ -62,16 +63,47 @@ export function readBackup(input){
 }
 export function sameBackupChat(file,origin,{exact=true}={}){
  const a=file.origin?.rawKeys||file.origin?.signatures,b=file.origin?.rawKeys?origin?.rawKeys:origin?.signatures;
- if(!a?.length||!b?.length)return false;const n=Math.min(a.length,b.length);return (!exact||a.length===b.length)&&a.slice(0,n).every((v,i)=>v===b[i]);
+ if(Array.isArray(a)&&Array.isArray(b)&&!a.length&&!b.length)return !!file.origin?.chatId&&file.origin.chatId===origin?.chatId;if(!a?.length||!b?.length)return false;const n=Math.min(a.length,b.length);return (!exact||a.length===b.length)&&a.slice(0,n).every((v,i)=>v===b[i]);
 }
 function mergeRecords(a,b,deleted=[]){const ids=new Set(deleted),map=new Map((a||[]).map(x=>[x.id,x]));for(const r of b||[])if(!ids.has(r.id)&&!map.has(r.id))map.set(r.id,copy(r));return [...map.values()];}
 function assignGroup(out,source,names){for(const k of names){delete out[k];if(Object.hasOwn(source,k))out[k]=copy(source[k]);}}
-export function planBackupImport({current,settings={},file,selected,mode='restore',origin,rows=[]}){
+
+const migrationFiles=new WeakSet(),migrationCache=new WeakMap();
+export function prepareBackupMigration(file,context={}){
+ if(migrationFiles.has(file))return file;if(migrationCache.has(file))return migrationCache.get(file);
+ const active=file.data.theatre?.theatre?.active;let data=file.data,info={fromTheatre:false};
+ if(active){
+  const main=currentBackupParts(unpackSave(active.main)),control=copy(file.data.theatre.theatre);delete control.active;delete control.pending;
+  if(!file.data.history)throw Error('进行中的剧场备份缺少暂停主线，无法继承');
+  const branch=unpackSave(file.data.history),saved=makeTheatreArchive(branch,context);
+  if(!control.history.some(h=>h.id===active.id))control.history.push({id:active.id,title:active.script?.title||'迁移前的剧场',started:active.started,ended:Date.now(),abandoned:true,migratedArchive:true,blueprintSettlementVersion:1,items:[],recipes:[],closet:[],gold:0,hidden:null,theatreArchive:saved.archive,archiveInfo:saved.info});
+  data={...file.data};for(const id of phoneGroups)data[id]=main[id];data.theatre={theatre:control};
+  if(file.data.appearance)data.appearance={...main.appearance,...(file.data.appearance.settings?{settings:file.data.appearance.settings}:{})};info={fromTheatre:true,title:active.script?.title||''};
+ }
+ const result={...file,data,migrationInfo:info};migrationFiles.add(result);migrationCache.set(file,result);return result;
+}
+function rebaseMigratedProgress(next,rows,ids){
+ if(ids.has('progress')){
+  for(const key of Object.keys(next))if(/Backup$/i.test(key)||/^pendingNarrative|^candidate/.test(key)||['theatreEarnings','theatreResume','theatreSocialVersion','theatreStoryVersion','theatreInheritedRevision'].includes(key))delete next[key];
+  next.draft=null;next.skillAccountingVersion=1;next.skillAccountingStartFloor=rows.length;next.qualityExperienceStartFloor=rows.length;
+  const importedKey=key=>typeof key==='string'&&!key.startsWith('imported:')&&!key.startsWith('pet:')?'imported:'+key:key;
+  for(const event of next.skillEventLog||[]){event.floor=0;event.key=importedKey(event.key);if(event.id)event.id=importedKey(event.id);}
+  for(const event of next.socialEvents||[]){if(Number.isInteger(event.floor))event.floor=0;if(event.skillKeys)event.skillKeys=event.skillKeys.map(importedKey);}
+  for(const row of [...(next.storage?.guards||[]),...(next.storage?.conflicts||[]),...(next.inventoryRemovals||[]),...(next.taskCompletionReceipts||[])])if(Number.isInteger(row.floor))row.floor=0;
+ }
+ if(ids.has('chat')){delete next.chatRound;for(const m of next.manual||[])if(m.from==='me'&&['queued','failed','sending'].includes(m.status))m.status='sent';}
+ if(ids.has('mail'))delete next.mailRound;
+ next.started=true;next.historyBootstrap={version:1,pending:false,floors:rows.length,reference:'',readAt:Date.now()};next.backupMigration={version:1,floor:rows.length,created:Date.now(),groups:[...ids].filter(id=>phoneGroups.includes(id))};
+}
+export function backupMigrationMemory(s){return s.backupMigration&&!s.theatre?.active?'\n【新档继承已完成】玩家已将旧档中勾选的数据继承到当前聊天，当前手机状态是已确认的新档基线。旧聊天、信件和交易属于已有历史，不是本轮新操作，不重复领奖、扣款或执行旧行动。不要用开场默认数值覆盖已继承进度；后续正常剧情变更照常更新。\n':'';}
+export function planBackupImport({current,settings={},file,selected,mode='restore',origin,rows=[],migration=false}){
+ if(migration)file=prepareBackupMigration(file);
  const ids=new Set(selected),available=new Set(file.selected);if(!ids.size)throw Error('请至少选择一项');for(const id of ids)if(!available.has(id))throw Error('文件没有该项目：'+id);
+ if(migration&&ids.has('history'))throw Error('新档继承不能套用旧楼层回退或 A/B 候选，请取消完整历史，其他当前数据可正常继承');
  if(ids.has('history'))for(const id of phoneGroups)ids.add(id);
  const bound=[...ids].some(id=>phoneGroups.includes(id)||id==='history');
- if(bound&&!sameBackupChat(file,origin,{exact:true}))throw Error('存档与当前聊天楼层或分支不匹配。请打开导出时对应的聊天再恢复；外观和素材可以单独导入。');
- if(bound&&current.theatre?.active&&!ids.has('history'))throw Error('剧场进行中，请使用完整历史恢复，或先结束剧场再恢复部分手机数据');
+ if(bound&&!migration&&!sameBackupChat(file,origin,{exact:true}))throw Error('存档与当前聊天楼层或分支不匹配。请打开导出时对应的聊天再恢复；外观和素材可以单独导入。');
+ if(bound&&current.theatre?.active&&(migration||!ids.has('history')))throw Error('请先结束当前聊天的剧场并返回主线，再继承旧档；同场剧场恢复请使用完整历史');
  if(mode==='merge'&&(ids.has('progress')||ids.has('history')))throw Error('游戏进度不能相加补缺，请选择“恢复所选内容”');
  const previous=currentBackupParts(current,settings),chosen={...previous},source=file.data;
  for(const id of phoneGroups)if(ids.has(id))chosen[id]=copy(source[id]);
@@ -93,9 +125,11 @@ export function planBackupImport({current,settings={},file,selected,mode='restor
   next={version:3,...copy(chosen.progress)};const state=next.state;delete next.state;next.base=copy(state);next.baseSocialRevision=chosen.progress.baseSocialRevision;
   for(const id of phoneGroups.filter(x=>x!=='progress'))Object.assign(next,copy(chosen[id]));
   Object.assign(next,pick(current,keys.appearance));next.manual??=[];next.unread??={};
+  if(migration)rebaseMigratedProgress(next,rows,ids);
   const before=checkpoint(next),revision=next.baseSocialRevision;
-  next.turns=rows.map(r=>({signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:revision,before,messages:[],letters:[],posts:[],comments:[],phoneDone:true,feedDone:true,mailDone:true,mailSyncVersion:1,playerCorrectionSnapshot:true}));
-  next.draft=copy(chosen.progress.draft??null);
+  const lastStory=rows.findLastIndex(r=>r.message&&!r.message.is_user&&!r.message.is_system);
+  next.turns=rows.map((r,i)=>({signature:r.signature,storyId:r.storyId,state:copy(state),socialRevision:revision,before,messages:[],letters:[],posts:[],comments:[],phoneDone:true,feedDone:true,mailDone:true,mailSyncVersion:1,playerCorrectionSnapshot:true,...(migration&&i===(lastStory<0?rows.length-1:lastStory)?{hasState:true}:{})}));
+  if(!migration)next.draft=copy(chosen.progress.draft??null);
  }
  if(ids.has('appearance')){if(next===current)next=compactClone(current);if(mode==='merge')for(const k of keys.appearance)next[k]={...(source.appearance[k]||{}),...(current[k]||{})};else assignGroup(next,source.appearance,keys.appearance);}
  for(const id of ['chat','mail','feed'])if(ids.has(id)){const part=source[id];for(const key of keys[id])if(['manual','letters','posts','comments','customGroups','deletedMessageIds','deletedLetterIds','deletedLetterKeys','archivedLetterIds','archivedLetterKeys','deletedPostIds','deletedCommentIds'].includes(key)&&part[key]!==undefined&&!Array.isArray(part[key]))throw Error('记录列表格式无效：'+key);}
@@ -103,7 +137,7 @@ export function planBackupImport({current,settings={},file,selected,mode='restor
  const settingsPatch={};for(const [id,names]of [['appearance',appearanceKeys],['preferences',preferenceKeys]])if(ids.has(id)){const cfg=id==='appearance'?source.appearance.settings:source.preferences;if(cfg)for(const k of names)if(mode!=='merge'||settings[k]===undefined)settingsPatch[k]=Object.hasOwn(cfg,k)?copy(cfg[k]):undefined;}
  if(ids.has('appearance')&&mode==='merge'&&source.appearance.settings?.appearance){const incoming=source.appearance.settings.appearance,old=settings.appearance||{};settingsPatch.appearance={...copy(incoming),...copy(old),icons:{...(incoming.icons||{}),...(old.icons||{})},cssPresets:mergeRecords(old.cssPresets,incoming.cssPresets)};}
  if(bound){validatePatch(world(next));if(next.storage)validateStorage(next.storage);if(next.shop)validateShopSave(next.shop);}
- return {next,settingsPatch,selected:[...ids],phoneChanged:bound||ids.has('appearance'),mode};
+ return {next,settingsPatch,selected:[...ids],phoneChanged:bound||ids.has('appearance'),mode,migration:!!migration&&bound};
 }
 function singleBackupSummary(data,id){const d=data[id];if(id==='history')return '完整历史';if(id==='progress'){const s=d?.state;return s?String(s.gold??0)+' 金币 · '+String(s.capacity??0)+' 格 · 背包 '+(s.inventory?.length||0)+' 项 · 衣柜/箱子 '+(d.storage?.chests?.length||0)+' 个':'游戏状态';}const rows=id==='chat'?d?.manual:id==='mail'?d?.letters:id==='feed'?d?.posts:id==='catalog'?Object.keys(d?.catalog||{}):id==='theatre'?d?.theatre?.history:id==='images'||id==='stickers'?d:null;return rows?rows.length+' 项':'';}
 

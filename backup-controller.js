@@ -2,16 +2,16 @@ import {packSave,unpackSave,prepareCompactStore} from './save-compaction.js';
 import {planBackupImport,remapBackupMedia,sameBackupChat} from './selective-backup.js';
 import {planAssetImport} from './backup-assets.js';
 import {backupAssets,backupUndoPoint,writeBackupAssets} from './stickers.js';
-export async function restoreSelectedBackup({file,selected,mode,origin,rows,current,settings,check,apply}){
+export async function restoreSelectedBackup({file,selected,mode,origin,rows,current,settings,check,apply,migration=false}){
  check();const assets=await backupAssets(),previousUndo=await backupUndoPoint();check();
  const assetPlan=planAssetImport(assets,file,selected),remapped=Object.keys(assetPlan.map).length?{...file,data:remapBackupMedia(file.data,assetPlan.map)}:file;
- const plan=planBackupImport({current,settings,file:remapped,selected,mode,origin,rows});
+ const plan=planBackupImport({current,settings,file:remapped,selected,mode,origin,rows,migration});
  const settingsBefore=Object.keys(plan.settingsPatch).map(key=>({key,exists:Object.hasOwn(settings,key),...(settings[key]!==undefined?{value:structuredClone(settings[key])}:{})}));
  const point={created:Date.now(),origin,phoneBefore:plan.phoneChanged?packSave(current):null,settingsBefore,added:assetPlan.add,selected:plan.selected};
  const expected=JSON.stringify(assets);check();await writeBackupAssets(assetPlan.add,point,{expected});
  try{check();await apply(plan.phoneChanged?prepareCompactStore(packSave(plan.next)):null,plan.settingsPatch);}
  catch(e){await writeBackupAssets([],previousUndo,{remove:assetPlan.add.map(x=>x.id)});throw e;}
- return '已恢复 '+plan.selected.length+' 项；未选项目保留，导入前备份可撤回。';
+ return (plan.migration?'已继承到当前聊天 ':'已恢复 ')+plan.selected.length+' 项；未选项目保留，导入前备份可撤回。';
 }
 export async function undoSelectedBackup({origin,current,settings={},check,apply}){
  check();const point=await backupUndoPoint();if(!point)throw Error('没有可撤回的选择导入');

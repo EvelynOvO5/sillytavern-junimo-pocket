@@ -5,7 +5,7 @@
   "optional": [],
   "js": "index.js",
   "author": "Junimo Pocket",
-  "version": "0.20.20",
+  "version": "0.20.21",
   "homePage": "https://github.com/EvelynOvO5/sillytavern-junimo-pocket",
   "auto_update": false,
   "generate_interceptor": "junimoPocketTheatreFilter"
