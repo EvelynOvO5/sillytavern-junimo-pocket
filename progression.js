@@ -28,7 +28,7 @@ export function letterAttachments(letter){
  }
  return {body:body.join('\n').trim(),recipes,warnings};
 }
-export function letterRecipes(letter){return letter.read?letterAttachments(letter).recipes.map(r=>({...r,learned:true})):[];}
+export function letterRecipes(letter){return letter.read&&!letter.backupRecordOnly?letterAttachments(letter).recipes.map(r=>({...r,learned:true})):[];}
 export function craftTransaction(state,name,quantity){const r=(state.recipes||[]).find(r=>r.name===name);if(!r?.learned)throw Error('尚未学习这张图纸');if(!whole(quantity,99)||!quantity)throw Error('制作数量须为1到99');const items=r.materials.flatMap(m=>takeItems(state.inventory,m.name,m.count*quantity));const gold=(r.gold||0)*quantity;if(state.gold<gold)throw Error('金币不足');const product=state.inventory.find(x=>sameItem(x,{name:r.product}))||{name:r.product,kind:'item',price:0,priceUnknown:true};items.push({...product,count:r.quantity*quantity});return {gold:-gold,items,description:'制作 '+r.product+' ×'+r.quantity*quantity+'（配方：'+r.name+'；已扣材料与费用）'};}
 export function projectTransaction(state,name){const r=(state.farmProjects||[]).find(r=>r.name===name);if(!r||r.status!=='推荐')throw Error('项目已开工或不存在');const items=r.materials.flatMap(m=>takeItems(state.inventory,m.name,m.count));if(state.gold<(r.gold||0))throw Error('金币不足');return {gold:-(r.gold||0),items,description:'开工 '+name+'，工期 '+r.days+' 天，'+r.description+'（材料与金币已扣，正文按工期推进，不能再次扣费）'};}
 export const progressionInstruction=`【制作、工程与成长同步】

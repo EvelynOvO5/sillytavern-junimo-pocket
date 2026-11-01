@@ -31,7 +31,7 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName='',skills
  const field=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能|经验事件|包裹)[：:]/;
  const fieldOnly=/^(时间|金币|容量|背包|农田|位置|好感|任务|建筑|动物|日程|记录|图纸|工程|穿着|技能|经验事件|包裹)$/;
  for(const line of segments){
-  if(!line||/^\x60\x60\x60/.test(line))continue;
+  if(!line||/^\x60\x60\x60/.test(line)||/^剧场获得[：:]/.test(line))continue;
   const last=joined.at(-1)||'',row=last.match(field);
   if(field.test(line)){joined.push(line);continue;}
   if(fieldOnly.test(last)){joined[joined.length-1]+=/^[：:]/.test(line)?line:'：'+line;continue;}
@@ -52,14 +52,14 @@ export function parseTextState(raw,state,{roles=[],anchors={},userName='',skills
  case '动物':list('animals',a==='无'?null:{name:a,status:b||''});break;
  case '建筑':list('buildings',a==='无'?null:{name:a,status:b||'',...(!unknown(c)?{progress:num(c)}:{})});break;
  case '日程':list('calendarEvents',a==='无'?null:{name:a,season:b,day:num(c),detail:d||'',person:e==='无'?'':e||''});break;
- case '图纸':if(v.length<9)throw Error('需要9个字段和8个竖线');if(!/^\d+$/.test(d))throw Error('单批数量须是明确正整数，不能写未知');if(!e)throw Error('材料不能为空；无需材料才写无');if(!/^\d+$/.test(f))throw Error('金币费用须是明确整数；无额外费用写0，不能写未知');if(!['已学习','未学习'].includes(g))throw Error('学习状态须写已学习或未学习');list('recipes',{name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''});break;
+ case '图纸':if(v.length<9)throw Error('需要9个字段和8个竖线');if(!/^\d+$/.test(d))throw Error('单批数量须是明确正整数，不能写未知');if(!e)throw Error('材料不能为空；无需材料才写无');if(!/^\d+$/.test(f))throw Error('金币费用须是明确整数；无额外费用写0，不能写未知');if(!['已学习','未学习'].includes(g))throw Error('学习状态须写已学习或未学习');{const recipe={name:a,category:b,product:c,quantity:num(d),materials:parseMaterials(e),gold:num(f),learned:g==='已学习',source:v[7]||'',description:v[8]||''};validatePatch({recipes:[recipe]});const at=(patch.recipes??=[]).findIndex(r=>r.name===recipe.name);if(at<0)patch.recipes.push(recipe);else patch.recipes[at]=recipe;}break;
  case '工程':list('farmProjects',{name:a,status:b,materials:parseMaterials(c),gold:num(d),days:num(e),source:f||'',description:g||''});break;
  case '穿着':(patch.player??={}).outfit=v.join('｜');break;
  case '经验事件':{const legacy=isSkillEventType(b)||!isSkillEventType(a);const offset=legacy?4:3,tail=v.slice(offset),quality=tail.length>1?normalizeQuality(tail.pop()):undefined;skillEvents.push(normalizeSkillEvent(legacy?{id:a,type:b,count:num(c),subject:d||'',evidence:tail.join('｜'),...(quality?{quality}:{})}:{type:a,count:num(b),subject:c||'',evidence:tail.join('｜'),...(quality?{quality}:{})}));break;}
  case '技能':if(skillsManaged){warnings.push('技能经验由手机计算，已忽略正文经验总数');break;}((patch.player??={}).skills??={})[a]=num(b);break;
  case '记录':patch.notes=v.join('｜');break;
  default:throw Error('未知状态栏目：'+key);
- }}catch(e){warnings.push(key+'：'+e.message);if(key==='包裹'){try{invalidPackages.add(itemKey({name:a,quality:'普通'}));}catch{invalidPackageNames.add(a);}}if(listKeys[key])invalidLists.add(listKeys[key]);}}
+ }}catch(e){warnings.push(key+'：'+e.message);if(key==='包裹'){try{invalidPackages.add(itemKey({name:a,quality:'普通'}));}catch{invalidPackageNames.add(a);}}if(listKeys[key]&&key!=='图纸')invalidLists.add(listKeys[key]);}}
  for(const summary of packageSummaries.values()){const entries=[...packageRows.entries()].filter(([,entry])=>entry.name===summary.name);if(entries.length!==1||invalidPackageNames.has(summary.name)){for(const [key] of entries)invalidPackages.add(key);warnings.push('包裹：'+summary.name+'需唯一且完整的包裹明细');continue;}const [key,entry]=entries[0];try{if(invalidPackages.has(key))throw Error('包裹内容未完整确认');const actual=new Set(entry.contents.map(i=>i.name)),expected=new Set(summary.names);if(actual.size!==expected.size||[...actual].some(n=>!expected.has(n)))throw Error('包裹概括与明细物品不一致');entry.count=summary.count;entry.confirmedSummary=true;}catch(e){invalidPackages.add(key);warnings.push('包裹：'+e.message);}}
  for(const [key,entry] of packageRows){const at=(patch.inventory||[]).findIndex(i=>sameItem(i,entry));if(at>=0)patch.inventory.splice(at,1);if(invalidPackages.has(key)||invalidPackageNames.has(entry.name)||invalidLists.has('inventory'))continue;try{if(!entry.confirmedSummary)throw Error('包裹需背包概括行：包名|当前包数|内容名称清单');const contents=validatePackageContents(entry.contents,entry),old=(state.inventory||[]).find(i=>sameItem(i,entry));if(old?.contents&&packageSignature(old.contents)!==packageSignature(contents))throw Error('同名同品质包裹内容不同，请另起包名');const item={...(old||{name:entry.name,quality:entry.quality,kind:'item',price:0,priceUnknown:true,days:0}),count:entry.count,contents};(patch.inventory??=[]).push(item);}catch(e){warnings.push('包裹：'+e.message);}}
  for(const key of invalidLists)delete patch[key];for(const key of Object.keys(patch)){if(key==='plots')continue;try{validatePatch({[key]:patch[key]});}catch(e){delete patch[key];warnings.push(key+'：'+e.message);}}

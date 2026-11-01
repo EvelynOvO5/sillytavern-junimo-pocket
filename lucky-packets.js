@@ -9,6 +9,7 @@ export function validateLuckyPacket(packet){
  const seen=new Set();for(let i=0;i<packet.claims.length;i++){const claim=packet.claims[i];if(!claim||!packet.eligible.includes(claim.memberId)||seen.has(claim.memberId)||claim.amount!==packet.amounts[i])throw Error('红包领取记录无效');seen.add(claim.memberId);}return packet;
 }
 export function planLuckyClaim(message,memberId,members,created=Date.now()){
+ if(message?.backupRecordOnly)throw Error('这是单独恢复的历史红包，请连同游戏进度恢复');
  if(message?.type!=='lucky_packet'||message.recalled||!message.id)throw Error('找不到这份拼手气红包');const packet=validateLuckyPacket(message.packet);if(!['me',...members].includes(memberId)||!packet.eligible.includes(memberId))throw Error('不是本群红包的领取成员');const old=packet.claims.find(c=>c.memberId===memberId);if(old)return {duplicate:true,amount:old.amount};if(packet.claims.length>=packet.shares)throw Error('红包已经领完');const amount=packet.amounts[packet.claims.length];return {duplicate:false,amount,claim:{memberId,amount,created},transactionId:'lucky-claim-'+message.id+'-'+memberId};
 }
 export function luckyPacketView(message){const packet=validateLuckyPacket(message.packet),own=packet.claims.find(c=>c.memberId==='me'),remaining=packet.shares-packet.claims.length;return {id:message.id,threadId:message.roleId,senderId:message.from==='me'?'me':message.speakerId,total:packet.total,shares:packet.shares,remaining,claims:packet.claims.map(c=>({...c})),ownAmount:own?.amount,finished:remaining===0};}

@@ -1,7 +1,7 @@
 import {compactCheckpoint,compactClone,requestSaveCompaction} from './save-compaction.js';
 import {sha256Bytes,newId} from './browser-compat.js';
 import {storyKey,storyText} from './story-sync.js';
-const shared=new Set(['candidateProgress','candidateContinuation','candidateGeneration','version','started','storySignatureVersion','chatAppearance','chatNames','feedProfile','customAvatars','avatars','toJSON']);
+const shared=new Set(['theatre','candidateProgress','candidateContinuation','candidateGeneration','version','started','storySignatureVersion','chatAppearance','chatNames','feedProfile','customAvatars','avatars','toJSON']);
 const backupNames=['backup','recordBackup','structureBackup','legacyBackup','demoBackup','turnGapBackup','importBackup'];
 const hash=text=>sha256Bytes(new TextEncoder().encode(text));
 const marker='junimo_pocket_candidate';

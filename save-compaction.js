@@ -1,6 +1,6 @@
 // Lossless JSON graph storage with independent, lazily decoded rollback fields.
 const FORMAT='junimo-pocket-compact',lazy=new WeakMap();
-const lazyContainers=new Set(['before','$root','$turn','backup','recordBackup','structureBackup','legacyBackup','demoBackup','turnGapBackup','importBackup']);
+const lazyContainers=new Set(['theatreArchive','before','$root','$turn','backup','recordBackup','structureBackup','legacyBackup','demoBackup','turnGapBackup','importBackup']);
 const forbidden=new Set(['__proto__','constructor','prototype']);
 const writers=new WeakMap(),patchWriters=new WeakMap();
 function writer(){return {nodes:[],seen:new Map(),imports:new Map(),stack:new WeakSet()};}
